@@ -249,14 +249,14 @@ function typeHttp(type) {
     type = 'null';
   } else if (type.startsWith('java.util.')) {
     if (type.endsWith('Map') || type.endsWith("table")) {
-      type = 'object';
+      type = '<map>';
     } else if (type.endsWith("List") || type.endsWith("Set") || type.endsWith("Queue")) {
       type = 'array';
     }
   } else if (type === 'java.lang.Object') {
-    type = 'object';
+    type = '<java.lang.Object>';
   } else {
-    type = 'object[' + type + "]";
+    type = '<' + type + ">";
   }
   return type;
 }
