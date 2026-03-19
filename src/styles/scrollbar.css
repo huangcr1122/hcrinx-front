@@ -1,0 +1,29 @@
+/* 全局滚动条样式 - 应用于整个页面 */
+::-webkit-scrollbar {
+  width: 5px; /* 垂直滚动条宽度 */
+  height: 5px; /* 水平滚动条高度 */
+}
+
+/* 滚动条轨道（背景） */
+::-webkit-scrollbar-track {
+  background: #f1f1f1; /* 轨道背景色 */
+  border-radius: 4px; /* 轨道圆角 */
+}
+
+/* 滚动条滑块（可拖动部分） */
+::-webkit-scrollbar-thumb {
+  background: #c7d7d4; /* 滑块默认颜色 */
+  border-radius: 4px; /* 滑块圆角 */
+  border: 1px solid transparent; /* 可选的边框 */
+  background-clip: content-box; /* 背景裁剪，避免边框影响 */
+}
+
+/* 鼠标悬停在滑块上的样式 */
+::-webkit-scrollbar-thumb:hover {
+  background: #949494; /* 悬停时颜色加深 */
+}
+
+/* 滚动条角落（水平和垂直滚动条交汇处） */
+::-webkit-scrollbar-corner {
+  background: #f1f1f1; /* 角落背景色 */
+}
