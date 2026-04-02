@@ -1,130 +1,201 @@
 <template>
-  <div style="padding: 0;background-color: #f1f1f1">
-    <el-container style="height: 93vh; border: 1px solid #eee">
-      <el-aside width="20vw" v-if="gitShow">
-        <div class="HisTitle">Git提交-{{ branch }}</div>
-        <el-input v-model="filterText" class="input-with-select" clearable placeholder="根据CommitId搜索" size="small" style="padding: 5px;" @clear="reset">
-          <el-select v-model="branch" slot="prepend" placeholder="请选择" style="width: 99px" @change="changeBranch">
-            <el-option v-for="item in branchs" :key="item" :label="item" :value="item"></el-option>
+  <div class="page-shell ops-page">
+    <div class="page-header">
+      <div class="page-header__main">
+        <div class="page-header__title">版本编译与部署</div>
+        <div class="page-header__desc">
+          统一查看 Git 提交、构建产物、部署记录与实时日志，形成完整的发布流水线视图。
+        </div>
+      </div>
+      <div class="page-header__meta">
+        <el-tag size="small">应用：{{ app }}</el-tag>
+        <el-tag size="small" :type="gitShow ? 'success' : 'warning'">{{ gitShow ? 'Git 构建' : '发布包构建' }}</el-tag>
+        <el-tag size="small">分支：{{ branch || '-' }}</el-tag>
+      </div>
+    </div>
+
+
+    <div :class="['ops-page__grid', { 'ops-page__grid--three': !gitShow }]">
+      <el-card v-if="gitShow" class="panel-card ops-page__panel">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">Git 提交</div>
+            <div class="panel-subtitle">按分支或 CommitId 快速定位需要编译的版本。</div>
+          </div>
+        </div>
+        <el-input
+          v-model="filterText"
+          class="input-with-select"
+          clearable
+          placeholder="根据 CommitId 搜索"
+          size="small"
+          @clear="reset"
+        >
+          <el-select v-model="branch" slot="prepend" placeholder="请选择" style="width: 120px" @change="changeBranch">
+            <el-option v-for="item in branchs" :key="item" :label="item" :value="item" />
           </el-select>
-          <el-button slot="append" icon="el-icon-search" @click="getGitCommitList"></el-button>
+          <el-button slot="append" icon="el-icon-search" @click="reset" />
         </el-input>
-        <el-collapse v-infinite-scroll="getGitCommitList" class="infinite-list" :infinite-scroll-disabled="disabled"
-                     style="overflow:auto;height: 84vh;padding-left: 5px" v-loading="gitLoading" v-model="chooseCommitId" accordion @change="showBuildHis">
-          <el-collapse-item v-for="(commit, index) in commitList" :key="index" :name="commit.id"
-                            placement="top" size="large" style="width: 99%;padding-bottom: 1px;">
-            <template slot="title">
-              <span style="color: #3a8515">{{ commit.commitTime }} </span>
-              <span style="white-space: nowrap;overflow: hidden;padding-left:5px;text-overflow: ellipsis;width:58%;">{{ commit.commitMsg }}</span>
-            </template>
-            <div style="background: #b2fff5;padding-top: 5px;padding-bottom: 5px">
-              <p style="margin-left: 11px;"><span style="font-weight: bold">CommitId：</span>{{ commit.id }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">提交时间：</span>{{ commit.commitTime }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">提交作者：</span>{{ commit.author }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">提交信息：</span>{{ commit.commitMsg }}</p>
-            </div>
-          </el-collapse-item>
-        </el-collapse>
-      </el-aside>
-      <el-aside width="20vw" style="background: #dcdbdb">
-        <div class="HisTitle">{{ gitShow ? '版本编译' : '部署包' }}</div>
-        <div style="display: flex;height: 37px;padding-left: 2px;padding-top: 5px">
-          <el-tooltip v-if="gitShow" class="item" effect="dark" content="仅保留最近16次构建历史" placement="bottom-start">
-            <el-tag type="success" effect="dark">{{ chooseCommitId }}</el-tag>
-          </el-tooltip>
-          <el-button v-if="gitShow" icon="el-icon-video-play" style="margin-left: 3px;" size="mini" type="success" @click="commitBuild" :disabled="buildButton">编译
-          </el-button>
-          <el-input v-model="buildUrl" v-if="!gitShow" clearable placeholder="请输入有效的发布包链接" size="small"></el-input>
-          <el-button v-if="!gitShow" icon="el-icon-video-play" style="margin-left: 3px;" size="mini" type="success" @click="newBuild" :disabled="buildButton">新建
-          </el-button>
+        <div class="list-scroll ops-page__list-shell" v-loading="gitLoading" v-infinite-scroll="getGitCommitList" :infinite-scroll-disabled="disabled">
+          <el-empty v-if="!gitLoading && commitList.length === 0" description="暂无提交记录" />
+          <el-collapse v-else v-model="chooseCommitId" accordion @change="showBuildHis">
+            <el-collapse-item v-for="commit in commitList" :key="commit.id" :name="commit.id">
+              <template slot="title">
+                <div class="ops-page__collapse-title">
+                  <span class="ops-page__time">{{ commit.commitTime }}</span>
+                  <span class="ops-page__title-text">{{ commit.commitMsg }}</span>
+                </div>
+              </template>
+              <div class="ops-page__detail-card">
+                <p><strong>CommitId：</strong>{{ commit.id }}</p>
+                <p><strong>提交时间：</strong>{{ commit.commitTime }}</p>
+                <p><strong>提交作者：</strong>{{ commit.author }}</p>
+                <p><strong>提交信息：</strong>{{ commit.commitMsg }}</p>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
         </div>
-        <el-empty v-if="chooseCommitId!==''&&buildList.length===0&&gitShow" description="该版本暂无编译历史记录，点击编译">
-          <el-button type="success" @click="commitBuild">编译</el-button>
-        </el-empty>
-        <el-empty v-if="chooseCommitId===''" description="请选择一个Git提交记录"></el-empty>
-        <el-collapse v-if="buildList.length>0" style="overflow:auto;height: 84vh;padding-left: 2px;margin-top: 6px" v-model="chooseBuildId" accordion @change="showDeployHis">
-          <el-collapse-item v-for="(build, index) in buildList" :key="index" :name="build.id"
-                            placement="top" size="large" style="width: 99%;padding-bottom: 1px;">
-            <template slot="title">
-              <el-tag v-if="build.start" :type="build.success?'success':'danger'" style="margin-left: 3px" effect="dark">{{ new Date(build.start).format("yyyy-MM-dd hh:mm:ss") }}
-              </el-tag>
-              <el-tag v-if="build.start" :type="build.success?'success':'danger'" style="margin-left: 3px" effect="dark">结果：{{ build.success ? '成功' : '失败' }}</el-tag>
-              <el-tag v-if="build.start" :type="build.success?'success':'danger'" style="margin-left: 3px" effect="dark">
-                耗时：{{ Math.round((build.end - build.start) / 1000) + ' 秒' }}
-              </el-tag>
-              <el-tag v-if="!build.start" style="margin-left: 3px" effect="dark">编译中<i class="el-icon-loading"></i></el-tag>
-            </template>
-            <div :style="{background: build.success?'#67c23a':'#f56c6c','padding-top': '5px','padding-bottom': '5px','line-height': '12px'}">
-              <p v-if="!gitShow" style="margin-left: 11px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;width:94%;"><span style="font-weight: bold;">来源：</span>{{
-                  build.from
-                }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">BuildID：</span>{{ build.id }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">开始时间：</span>{{ new Date(build.start).format("yyyy-MM-dd hh:mm:ss") }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">结束时间：</span>{{ new Date(build.end).format("yyyy-MM-dd hh:mm:ss") }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">执行用户：</span>{{ build.user }}</p>
-              <p style="margin-left: 11px;" v-if="build.success"><span style="font-weight: bold">制品链接：</span>
-                <el-link :underline="false" :href="'http://172.24.149.20/hcrinx/' + app + '/' + chooseCommitId + '/' + build.id + '.zip'">下载</el-link>
-              </p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">制品MD5：</span>{{ build.md5 }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">执行日志：</span>
-                <el-link :underline="false" @click="showBuildLog0(build.id)">查看</el-link>
-              </p>
-            </div>
-          </el-collapse-item>
-        </el-collapse>
-      </el-aside>
-      <el-aside width="20vw">
-        <div class="HisTitle">制品部署{{ (chooseCommitId === '' || chooseBuildId === '') ? '' : ('-' + chooseBuildId) }}</div>
-        <div style="display: flex;height: 37px;padding-left: 2px;padding-top: 5px">
-          <el-select v-model="multipleSelection" multiple collapse-tags style="width: 280px" size="small" placeholder="请选择部署主机">
-            <el-option v-for="item in hostData" :key="item.id" :label="item.ip+':'+item.deploy" :value="item.id"></el-option>
-          </el-select>
-          <el-button icon="el-icon-video-play" style="margin-left: 3px;" size="mini" type="warning" @click="deployApp" :disabled="buildButton||deployButton">部署
-          </el-button>
+      </el-card>
+
+      <el-card class="panel-card ops-page__panel">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">{{ gitShow ? '版本编译' : '部署包构建' }}</div>
+            <!-- <div class="panel-subtitle">{{ gitShow ? '选择一个 Git 提交后发起构建。' : '输入可访问的发布包链接直接新建构建。' }}</div> -->
+          </div>
+          <!-- <div v-if="gitShow" class="panel-header__actions"> -->
+            <!-- <span class="status-pill ops-page__commit-pill">{{ chooseCommitId ? `当前 Commit：${chooseCommitId}` : '请选择 Git 提交' }}</span> -->
+          <!-- </div> -->
+
         </div>
-        <el-empty v-if="chooseBuildId!==''&&chooseCommitId!==''&&deployList.length===0" description="暂无部署历史记录，点击部署">
-          <el-button type="warning" @click="deployApp">部署</el-button>
-        </el-empty>
-        <el-empty v-if="chooseBuildId===''||chooseCommitId===''" description="请选择一个版本编译记录"></el-empty>
-        <el-collapse v-if="chooseBuildId!==''&&deployList.length>0" style="overflow:auto;height: 87vh;margin-top: 6px;padding-left: 2px" v-model="chooseDeployId" accordion>
-          <el-collapse-item v-for="(deploy, index) in deployList" :key="index" :name="deploy.id"
-                            placement="top" size="large" style="width: 99%;padding-bottom: 1px;">
-            <template slot="title">
-              <el-tag v-if="deploy.start" :type="deploy.success?'success':'danger'" style="margin-left: 3px" effect="dark">{{ new Date(deploy.start).format("yyyy-MM-dd hh:mm:ss")
-                }}
-              </el-tag>
-              <el-tag v-if="deploy.start" :type="deploy.success?'success':'danger'" style="margin-left: 3px" effect="dark">结果：{{ deploy.success ? '成功' : '失败' }}</el-tag>
-              <el-tag v-if="deploy.start" :type="deploy.success?'success':'danger'" style="margin-left: 3px" effect="dark">
-                耗时：{{ Math.round((deploy.end - deploy.start) / 1000) + ' 秒' }}
-              </el-tag>
-              <el-tag v-if="!deploy.start" style="margin-left: 3px" effect="dark">部署中<i class="el-icon-loading"></i></el-tag>
-            </template>
-            <div :style="{background: deploy.success?'#67c23a':'#f56c6c','padding-top': '5px','padding-bottom': '5px','line-height': '12px'}">
-              <p style="margin-left: 11px;"><span style="font-weight: bold">DeployID：</span>{{ deploy.id }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">部署时间：</span>{{ new Date(deploy.start).format("yyyy-MM-dd hh:mm:ss") }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">结束时间：</span>{{ new Date(deploy.end).format("yyyy-MM-dd hh:mm:ss") }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">执行用户：</span>{{ deploy.user }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">部署主机：</span>{{ deploy.to ? deploy.to.replaceAll(';', '\n') : '' }}</p>
-              <p style="margin-left: 11px;"><span style="font-weight: bold">部署日志：</span>
-                <el-link :underline="false" @click="showDeployLog0(deploy.id)">查看</el-link>
-              </p>
-            </div>
-          </el-collapse-item>
-        </el-collapse>
-      </el-aside>
-      <el-container style="flex: 1; ">
-        <el-main style="background:white;padding:0;">
-          <ul v-if="rpcLog" style="height:89vh;overflow-y: auto;" ref="buildLogView">
-            <li v-for='(item,index) in rpcLog' :key='index+""+item.ts' :style="{'line-height': '18px','white-space': 'pre-wrap','font-size': '14px',color:levelColor[item.level]}">
-              <!--               {{ index }} - -->
-              <span style="color: #00bcd4">{{ item.ts }}</span>
-              {{ '【' + logLevel[item.level] + '】' + item.content }}
-              <br>
-            </li>
-          </ul>
-        </el-main>
-      </el-container>
-    </el-container>
+        <div class="page-toolbar ops-page__build-toolbar">
+          <div class="page-toolbar__group page-toolbar__grow">
+            <div v-if="gitShow" class="section-caption ops-page__build-caption">{{ chooseCommitId ? `${chooseCommitId}` : '选择Git提交记录开始编译' }}</div>
+            <el-input v-else v-model="buildUrl" clearable placeholder="请输入有效的发布包链接" size="small" />
+          </div>
+
+          <div class="page-toolbar__group">
+            <el-button
+              v-if="gitShow"
+              :disabled="buildButton"
+              size="small"
+              type="success"
+              icon="el-icon-video-play"
+              @click="commitBuild"
+            >
+              编译
+            </el-button>
+            <el-button
+              v-else
+              :disabled="buildButton"
+              size="small"
+              type="success"
+              icon="el-icon-plus"
+              @click="newBuild"
+            >
+              新建
+            </el-button>
+          </div>
+        </div>
+        <div class="list-scroll ops-page__list-shell">
+          <el-empty v-if="chooseCommitId !== '' && buildList.length === 0 && gitShow" description="该版本暂无编译历史，可直接发起编译">
+            <el-button type="success" @click="commitBuild">开始编译</el-button>
+          </el-empty>
+          <el-empty v-else-if="chooseCommitId === '' && gitShow" description="请选择一个 Git 提交记录" />
+          <el-empty v-else-if="buildList.length === 0 && !gitShow" description="暂无部署包构建记录" />
+          <el-collapse v-else v-model="chooseBuildId" accordion @change="showDeployHis">
+            <el-collapse-item v-for="build in buildList" :key="build.id" :name="build.id">
+              <template slot="title">
+                <div class="ops-page__status-line">
+                  <el-tag v-if="build.start" :type="build.success ? 'success' : 'danger'" effect="dark" size="mini">
+                    {{ new Date(build.start).format("yyyy-MM-dd hh:mm:ss") }}
+                  </el-tag>
+                  <el-tag v-if="build.start" :type="build.success ? 'success' : 'danger'" effect="dark" size="mini">{{ build.success ? '成功' : '失败' }}</el-tag>
+                  <el-tag v-if="build.start" :type="build.success ? 'success' : 'danger'" effect="dark" size="mini">耗时{{ formatCostTime(build.start, build.end) }}</el-tag>
+                  <el-tag v-if="!build.start" effect="dark">编译中<i class="el-icon-loading"></i></el-tag>
+                </div>
+              </template>
+              <div class="ops-page__detail-card" :class="{ 'ops-page__detail-card--danger': build.start && !build.success }">
+                <p v-if="!gitShow"><strong>来源：</strong>{{ build.from }}</p>
+                <p><strong>BuildID：</strong>{{ build.id }}</p>
+                <p><strong>开始时间：</strong>{{ build.start ? new Date(build.start).format("yyyy-MM-dd hh:mm:ss") : '-' }}</p>
+                <p><strong>结束时间：</strong>{{ build.end ? new Date(build.end).format("yyyy-MM-dd hh:mm:ss") : '-' }}</p>
+                <p><strong>执行用户：</strong>{{ build.user || '-' }}</p>
+                <p v-if="build.success"><strong>制品链接：</strong><el-link :underline="false" :href="downloadUrl(build)">下载</el-link></p>
+                <p><strong>制品 MD5：</strong>{{ build.md5 || '-' }}</p>
+                <p><strong>执行日志：</strong><el-link :underline="false" @click="showBuildLog0(build.id)">查看</el-link></p>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
+      </el-card>
+
+      <el-card class="panel-card ops-page__panel">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">制品部署</div>
+            <div class="panel-subtitle">选择构建产物与目标主机后发起部署。</div>
+          </div>
+        </div>
+        <div class="page-toolbar ops-page__build-toolbar">
+          <div class="page-toolbar__group page-toolbar__grow">
+            <el-select v-model="multipleSelection" multiple collapse-tags size="small" placeholder="请选择部署主机" style="width: 100%">
+              <el-option v-for="item in hostData" :key="item.id" :label="item.ip + ':' + item.deploy" :value="item.id" />
+            </el-select>
+          </div>
+          <div class="page-toolbar__group">
+            <el-button :disabled="buildButton || deployButton" size="small" type="warning" icon="el-icon-upload" @click="deployApp">部署</el-button>
+          </div>
+        </div>
+        <div v-if="multipleSelection.length" class="section-caption ops-page__host-text">已选主机：{{ selectedHostText }}</div>
+
+        <div class="list-scroll ops-page__list-shell">
+          <el-empty v-if="chooseBuildId !== '' && chooseCommitId !== '' && deployList.length === 0" description="暂无部署历史，可直接发起部署">
+            <el-button type="warning" @click="deployApp">立即部署</el-button>
+          </el-empty>
+          <el-empty v-else-if="chooseBuildId === '' || chooseCommitId === ''" description="请选择一个构建版本" />
+          <el-collapse v-else v-model="chooseDeployId" accordion>
+            <el-collapse-item v-for="deploy in deployList" :key="deploy.id" :name="deploy.id">
+              <template slot="title">
+                <div class="ops-page__status-line">
+                  <el-tag v-if="deploy.start" :type="deploy.success ? 'success' : 'danger'" effect="dark" size="mini">
+                    {{ new Date(deploy.start).format("yyyy-MM-dd hh:mm:ss") }}
+                  </el-tag>
+                  <el-tag v-if="deploy.start" :type="deploy.success ? 'success' : 'danger'" effect="dark" size="mini">{{ deploy.success ? '成功' : '失败' }}</el-tag>
+                  <el-tag v-if="deploy.start" :type="deploy.success ? 'success' : 'danger'" effect="dark" size="mini">耗时{{ formatCostTime(deploy.start, deploy.end) }}</el-tag>
+                  <el-tag v-if="!deploy.start" effect="dark">部署中<i class="el-icon-loading"></i></el-tag>
+                </div>
+              </template>
+              <div class="ops-page__detail-card" :class="{ 'ops-page__detail-card--danger': deploy.start && !deploy.success }">
+                <p><strong>DeployID：</strong>{{ deploy.id }}</p>
+                <p><strong>部署时间：</strong>{{ deploy.start ? new Date(deploy.start).format("yyyy-MM-dd hh:mm:ss") : '-' }}</p>
+                <p><strong>结束时间：</strong>{{ deploy.end ? new Date(deploy.end).format("yyyy-MM-dd hh:mm:ss") : '-' }}</p>
+                <p><strong>执行用户：</strong>{{ deploy.user || '-' }}</p>
+                <p><strong>部署主机：</strong>{{ deploy.to ? deploy.to.replaceAll(';', '；') : '-' }}</p>
+                <p><strong>部署日志：</strong><el-link :underline="false" @click="showDeployLog0(deploy.id)">查看</el-link></p>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
+      </el-card>
+
+      <el-card class="panel-card ops-page__panel ops-page__panel--log">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">{{ currentLogTitle }}</div>
+            <div class="panel-subtitle">展示当前构建或部署过程中的实时日志输出。</div>
+          </div>
+        </div>
+        <div ref="buildLogView" class="log-stream ops-page__log-shell">
+          <div v-if="rpcLog.length === 0" class="muted-text">选择记录后即可在这里查看日志。</div>
+          <div v-for="(item, index) in rpcLog" :key="index + '' + item.ts" class="log-stream__item ops-page__log-item" :style="{ color: levelColor[item.level] }">
+            <span class="log-stream__meta ops-page__log-meta">{{ item.ts }}</span>
+            <span class="ops-page__log-content">{{ '【' + logLevel[item.level] + '】' + item.content }}</span>
+          </div>
+        </div>
+
+      </el-card>
+    </div>
   </div>
 </template>
 
@@ -148,6 +219,7 @@ export default {
       chooseDeployId: '',
       disabled: false,
       rpcLog: [],
+      showLog: false,
       logLevel: ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR'],
       levelColor: ['#9E9E9E', '#8BC34A', '#409EFF', '#E6A23C', '#ff0000'],
       gitLoading: true,
@@ -158,19 +230,38 @@ export default {
       hostData: [],
       multipleSelection: [],
       gitShow: true,
-      buildUrl: '',
+      buildUrl: ''
     };
+  },
+  computed: {
+    selectedHostText() {
+      return this.hostData
+        .filter(item => this.multipleSelection.includes(item.id))
+        .map(item => `${item.ip}:${item.deploy}`)
+        .join('，');
+    },
+    currentLogTitle() {
+      if (this.chooseDeployId) {
+        return `部署日志 #${this.chooseDeployId}`;
+      }
+      if (this.chooseBuildId) {
+        return `构建日志 #${this.chooseBuildId}`;
+      }
+      return '实时日志';
+    }
   },
   mounted() {
     if (!this.app) {
-      this.$router.push({path: "/"});
+      this.$router.push({ path: "/" });
+      return;
     }
     request({
       url: "/admin/ops/getRemoteBranch",
-      params: {},
+      params: {}
     }).then((res) => {
       this.branchs = res.data;
       this.branch = res.msg;
+      this.getGitCommitList();
     });
     request({
       url: "/admin/home/getAppHost",
@@ -182,25 +273,34 @@ export default {
           if (x.valid === 1) {
             this.hostData.push(x);
           }
-        })
+        });
       }
     });
   },
   methods: {
+    formatCostTime(start, end) {
+      if (!start || !end) return '-';
+      return Math.round((end - start) / 1000) + ' 秒';
+    },
+    downloadUrl(build) {
+      return 'http://172.24.149.20/hcrinx/' + this.app + '/' + this.chooseCommitId + '/' + build.id + '.zip';
+    },
     reset() {
       this.commitList = [];
       this.pageNo = 1;
+      this.disabled = false;
       this.getGitCommitList();
     },
     changeBranch(newBranch) {
       request({
         url: "/admin/ops/changeBranch",
-        params: {branch: newBranch},
+        params: { branch: newBranch }
       }).then((res) => {
         if (res.code === 0) {
           this.pageNo = 1;
           this.commitList = [];
-          this.getGitCommitList()
+          this.disabled = false;
+          this.getGitCommitList();
         }
       });
     },
@@ -211,10 +311,9 @@ export default {
         params: {
           commitid: this.filterText,
           pageNo: this.pageNo,
-          pageSize: this.pageSize,
-        },
+          pageSize: this.pageSize
+        }
       }).then((res) => {
-        this.gitLoading = false;
         if (res.code === 1) {
           this.gitShow = false;
           if (this.chooseCommitId === '') {
@@ -222,12 +321,12 @@ export default {
             this.showBuildHis();
           }
         } else {
+          this.gitShow = true;
           if (res.data.length === 0) {
             this.disabled = true;
           } else if (this.filterText.trim().length > 0 && res.data.length === 1) {
-            this.commitList = [];
+            this.commitList = [res.data[0]];
             this.pageNo = 1;
-            this.commitList.push(res.data[0]);
             this.disabled = true;
           } else {
             this.disabled = false;
@@ -235,6 +334,8 @@ export default {
             res.data.map(x => this.commitList.push(x));
           }
         }
+      }).finally(() => {
+        this.gitLoading = false;
       });
     },
     showBuildHis() {
@@ -242,13 +343,13 @@ export default {
       if (this.chooseCommitId === '') {
         this.chooseBuildId = '';
         this.buildList = [];
-        return
+        return;
       }
       request({
         url: "/admin/ops/gitCommitPackageHis",
         params: {
-          commitid: this.chooseCommitId,
-        },
+          commitid: this.chooseCommitId
+        }
       }).then((res) => {
         this.buildList = res.data;
         this.chooseBuildId = '';
@@ -256,20 +357,20 @@ export default {
     },
     commitBuild() {
       if (this.chooseCommitId === '') {
-        this.$message.error('请选择一个Git版本');
-        return
+        this.$message.error('请选择一个 Git 版本');
+        return;
       }
       this.buildButton = true;
       request({
         url: "/admin/ops/gitCommitPackage",
         params: {
-          commitid: this.chooseCommitId,
-        },
+          commitid: this.chooseCommitId
+        }
       }).then((res) => {
-        let buildId = res.data;
-        this.buildList.unshift({id: buildId})
-        let timer = setInterval(() => {
-          this.showBuildLog(buildId, timer)
+        const buildId = res.data;
+        this.buildList.unshift({ id: buildId });
+        const timer = setInterval(() => {
+          this.showBuildLog(buildId, timer);
         }, 500);
       });
     },
@@ -282,13 +383,13 @@ export default {
       request({
         url: "/admin/ops/gitCommitPackage",
         params: {
-          url: this.buildUrl,
-        },
+          url: this.buildUrl
+        }
       }).then((res) => {
-        let buildId = res.data;
-        this.buildList.unshift({id: buildId})
-        let timer = setInterval(() => {
-          this.showBuildLog(buildId, timer)
+        const buildId = res.data;
+        this.buildList.unshift({ id: buildId });
+        const timer = setInterval(() => {
+          this.showBuildLog(buildId, timer);
         }, 500);
       });
     },
@@ -296,8 +397,8 @@ export default {
       request({
         url: "/admin/ops/getBuildLog",
         params: {
-          buildId: buildId,
-        },
+          buildId: buildId
+        }
       }).then((res) => {
         this.showLog = true;
         this.rpcLog = res.data;
@@ -306,31 +407,23 @@ export default {
           this.buildButton = false;
           this.showBuildHis();
         }
-        const container = this.$refs.buildLogView;
-        if (container) {
-          this.$nextTick(() => {
-            container.scrollTo({
-              top: container.scrollHeight,
-              behavior: 'smooth'
-            });
-          })
-        }
-      }).catch((e) => {
+        this.scrollLogToBottom();
+      }).catch(() => {
         clearInterval(timer);
         this.buildButton = false;
         this.showBuildHis();
       });
     },
     showBuildLog0(id) {
-      let appbuild = this.buildList.find(x => x.id === id);
+      const appbuild = this.buildList.find(x => x.id === id);
       if (appbuild) {
-        this.rpcLog = appbuild.log
+        this.rpcLog = appbuild.log || [];
       }
     },
     showDeployLog0(id) {
-      let appdeploy = this.deployList.find(x => x.id === id);
+      const appdeploy = this.deployList.find(x => x.id === id);
       if (appdeploy) {
-        this.rpcLog = appdeploy.log
+        this.rpcLog = appdeploy.log || [];
       }
     },
     showDeployHis() {
@@ -342,29 +435,26 @@ export default {
         url: "/admin/ops/buildDeployHis",
         params: {
           commitid: this.chooseCommitId,
-          buildid: this.chooseBuildId,
-        },
+          buildid: this.chooseBuildId
+        }
       }).then((res) => {
         this.deployList = res.data;
         this.chooseDeployId = '';
       });
     },
-    deployApp0() {
-
-    },
     deployApp() {
       if (this.chooseBuildId === '') {
         this.$message.error('请选择一个编译版本');
-        return
+        return;
       }
-      let appbuild = this.buildList.find(x => x.id === this.chooseBuildId);
+      const appbuild = this.buildList.find(x => x.id === this.chooseBuildId);
       if (appbuild && !appbuild.success) {
         this.$message.error('该编译版本无部署包');
-        return
+        return;
       }
       if (this.multipleSelection.length === 0) {
         this.$message.error('请至少选择一个部署主机');
-        return
+        return;
       }
       this.deployButton = true;
       request({
@@ -372,14 +462,14 @@ export default {
         params: {
           commitid: this.chooseCommitId,
           buildid: this.chooseBuildId,
-          hostid: this.multipleSelection.join(",")
+          hostid: this.multipleSelection.join(',')
         }
       }).then(res => {
         if (res.code === 0) {
-          let deployId = res.data;
-          this.deployList.unshift({id: deployId})
-          let timer = setInterval(() => {
-            this.showDeployLog(deployId, timer)
+          const deployId = res.data;
+          this.deployList.unshift({ id: deployId });
+          const timer = setInterval(() => {
+            this.showDeployLog(deployId, timer);
           }, 500);
         }
       });
@@ -388,8 +478,8 @@ export default {
       request({
         url: "/admin/ops/getDeployLog",
         params: {
-          deployId: deployId,
-        },
+          deployId: deployId
+        }
       }).then((res) => {
         this.showLog = true;
         this.rpcLog = res.data;
@@ -398,55 +488,171 @@ export default {
           this.deployButton = false;
           this.showDeployHis();
         }
-        const container = this.$refs.buildLogView;
-        if (container) {
-          this.$nextTick(() => {
-            container.scrollTo({
-              top: container.scrollHeight,
-              behavior: 'smooth'
-            });
-          })
-        }
-      }).catch((e) => {
+        this.scrollLogToBottom();
+      }).catch(() => {
         clearInterval(timer);
         this.deployButton = false;
         this.showDeployHis();
       });
     },
-  },
+    scrollLogToBottom() {
+      const container = this.$refs.buildLogView;
+      if (container) {
+        this.$nextTick(() => {
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+          });
+        });
+      }
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-:deep(.el-timeline-item__timestamp) {
-  color: #000;
+.ops-page__summary-grid {
+  margin-top: 14px;
 }
 
-:deep(.el-collapse-item__content) {
-  padding-bottom: 0;
+.ops-page__grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 19%) minmax(240px, 19%) minmax(240px, 19%) minmax(0, 1fr);
+  gap: 12px;
 }
 
-:deep(.el-collapse-item__wrap) {
-  background-color: #ee000000;
+.ops-page__grid--three {
+  grid-template-columns: minmax(240px, 23%) minmax(240px, 23%) minmax(0, 1fr);
 }
 
-.HisTitle {
+.ops-page__panel {
+  min-height: calc(100vh - 220px);
+}
+
+.ops-page__panel--log {
+  min-width: 0;
+}
+
+.ops-page__commit-pill {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-page__build-toolbar {
+  align-items: flex-start;
+}
+
+.ops-page__build-caption {
+  margin-bottom: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-page__list-shell {
+  margin-top: 10px;
+}
+
+.ops-page__collapse-title {
   display: flex;
-  padding-top: 11px;
-  font-weight: bolder;
-  color: #40b3b3;
-  -webkit-box-pack: center;
-  -ms-flex-pack: center;
-  justify-content: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
   align-items: center;
-  -ms-flex-direction: column;
-  -webkit-box-orient: vertical;
-  -webkit-box-direction: normal;
-  flex-direction: column;
-  text-align: center;
-  -webkit-box-sizing: border-box;
-  box-sizing: border-box;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+  font-size: 12px;
+}
+
+.ops-page__time {
+  color: #16a34a;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.ops-page__title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-page__status-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ops-page__detail-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ecfdf5, #f8fafc);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ops-page__detail-card p + p {
+  margin-top: 4px;
+}
+
+.ops-page__detail-card--danger {
+  background: linear-gradient(180deg, #fef2f2, #fff7ed);
+}
+
+.ops-page__host-text {
+  margin: 6px 0 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-page__log-shell {
+  min-height: calc(100vh - 280px);
+  max-height: calc(100vh - 280px);
+  padding: 8px 10px;
+}
+
+.ops-page__log-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding-bottom: 3px;
+}
+
+.ops-page__log-meta {
+  flex: 0 0 auto;
+  margin-right: 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.ops-page__log-content {
+  min-width: 0;
+  flex: 1;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+@media (max-width: 1680px) {
+  .ops-page__grid,
+  .ops-page__grid--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 992px) {
+  .ops-page__grid,
+  .ops-page__grid--three {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-page__build-caption,
+  .ops-page__host-text {
+    white-space: normal;
+  }
 }
 </style>
+

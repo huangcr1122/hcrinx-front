@@ -1,37 +1,52 @@
 <template>
-  <div style="margin-top: 10px">
-    <el-date-picker v-model="period" align="right" size="small" :picker-options="pickerOptions" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间"
-                    style="width: 350px;margin-left: 3px" type="datetimerange" :default-time="['08:00:00', '15:00:00']"></el-date-picker>
-    <el-input v-model="content" clearable placeholder="日志搜索" size="small" style="width: 330px;margin-left: 3px"></el-input>
-    <el-select v-model="level" clearable filterable placeholder="选择日志级别" size="small" style="width: 160px;margin-left: 3px">
-      <el-option v-for="item in logLevel" :key="item" :label="item" :value="item"></el-option>
-    </el-select>
-    <el-button size="mini" style="margin-left: 3px" type="success" icon="el-icon-search" @click="searchLog">查询</el-button>
-    <ul class="infinite-list" v-infinite-scroll="load" style="overflow:auto;height: 85vh;">
-      <li v-for='(item,index) in logData' :key='index+""+item.ts' :style="{'line-height': '18px','white-space': 'pre-wrap','font-size': '14px',color:levelColor[item.level]}">
-        <span style="color: #00bcd4">{{'【'+item.app+ (item.app==='data'?'':'-'+item.appip) + '】' + item.ts }}</span>
-        {{ '【' + logLevel[item.level] + '】' + item.clazz + '【' + item.method + ':' + item.line + '】 ' + item.content }}
-        <br>
-      </li>
-    </ul>
-  </div>
+  <div class="page-shell log-page">
+    <div class="page-header">
+      <div class="page-header__main">
+        <div class="page-header__title">系统日志</div>
+        <div class="page-header__desc">查看平台级系统日志，支持按时间范围、日志级别和关键字快速过滤。</div>
+      </div>
+    </div>
 
+
+    <el-card shadow="never" class="panel-card">
+      <div class="page-toolbar log-page__toolbar">
+        <div class="page-toolbar__group page-toolbar__grow">
+          <el-date-picker v-model="period" class="log-page__range" align="right" size="small" :picker-options="pickerOptions" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" type="datetimerange" :default-time="['08:00:00', '15:00:00']"></el-date-picker>
+          <el-input v-model="content" class="log-page__input--content" clearable placeholder="日志内容搜索" size="small"></el-input>
+          <el-select v-model="level" class="log-page__select--level" clearable filterable placeholder="选择日志级别" size="small">
+            <el-option v-for="item in logLevel" :key="item" :label="item" :value="item"></el-option>
+          </el-select>
+        </div>
+        <div class="page-toolbar__group">
+          <el-button size="small" @click="resetFilters">重置</el-button>
+          <el-button size="small" type="primary" icon="el-icon-refresh-right" @click="searchLog">刷新</el-button>
+        </div>
+      </div>
+
+      <div class="panel-subtitle">当前已加载 {{ logData.length }} 条系统日志，继续下拉可加载更多内容。</div>
+
+      <ul v-infinite-scroll="load" class="log-stream log-page__stream" :infinite-scroll-disabled="loading">
+        <li v-for="(item,index) in logData" :key="index + '' + item.ts" class="log-stream__item log-page__item" :style="{color: levelColor[item.level]}">
+          <span class="log-stream__meta log-page__meta">{{ '【' + item.app + (item.app === 'data' ? '' : '-' + item.appip) + '】' + item.ts }}</span>
+          <span class="log-page__content">{{ '【' + logLevel[item.level] + '】' + item.clazz + '【' + item.method + ':' + item.line + '】 ' + item.content }}</span>
+        </li>
+      </ul>
+
+    </el-card>
+  </div>
 </template>
 
 <script>
 import request from "@/utils/request";
-import 'vue-json-viewer/style.css'
 
 export default {
   name: "SysLogs",
   data() {
     return {
       logLevel: ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR'],
-      levelColor: ['#9E9E9E', '#8BC34A', '#409EFF', '#E6A23C', '#ff0000'],
+      levelColor: ['#94a3b8', '#84cc16', '#38bdf8', '#f59e0b', '#f87171'],
       page: 1,
       period: [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 728 * 3600 * 1000), new Date()],
-      ts: null,
-      rid: null,
       loading: false,
       level: 'INFO',
       content: '',
@@ -43,7 +58,6 @@ export default {
           onClick(picker) {
             const end = new Date();
             const start = new Date();
-            new Date()
             start.setTime(start.getTime() - start.getTime() % (24 * 3600 * 1000) - 8 * 3600 * 1000);
             picker.$emit('pick', [start, end]);
           }
@@ -85,9 +99,19 @@ export default {
     };
   },
   mounted() {
+    this.searchLog();
   },
   methods: {
+    resetFilters() {
+      this.content = '';
+      this.level = 'INFO';
+      this.searchLog();
+    },
     load() {
+      if (this.loading) {
+        return;
+      }
+      this.loading = true;
       request({
         url: "/admin/rpclog/syslog",
         params: {
@@ -96,18 +120,18 @@ export default {
           end: this.period[1].format("yyyy-MM-dd hh:mm:ss"),
           content: this.content,
           appip: this.appip,
-          noMemoLog: this.noMemoLog ? 1 : 0,
-          noCommonLog: this.noCommonLog ? 1 : 0,
           level: this.logLevel.indexOf(this.level),
         },
       }).then((res) => {
-        if (res.data.length === 0) {
+        if ((res.data || []).length === 0) {
           this.$message.warning('到底啦');
         } else {
           this.page++;
-          res.data.map(x => this.logData.push(x));
+          (res.data || []).forEach((x) => this.logData.push(x));
         }
-      })
+      }).finally(() => {
+        this.loading = false;
+      });
     },
     searchLog() {
       this.page = 1;
@@ -117,51 +141,3 @@ export default {
   },
 };
 </script>
-<style lang="scss" scoped>
-.error-row {
-  color: #ff0000;
-}
-
-.warning-row {
-  color: #c3da04;
-}
-
-.success-row {
-  color: #000000;
-}
-
-.cell {
-  white-space: pre-line !important;
-}
-
-.httptext {
-  display: -webkit-box;
-  overflow: hidden;
-  white-space: normal !important;
-  text-overflow: ellipsis;
-  word-wrap: break-word;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-}
-
-.flex-prepend-input {
-  padding-top: 10px;
-}
-
-.flex-prepend-input ::v-deep .el-input-group__prepend {
-  align-items: center; /* 垂直居中 */
-  min-width: 145px; /* 设置最小宽度 */
-  color: #30667c;
-  font-size: 14px;
-}
-
-.flex-container {
-  display: flex; /* 开启Flex布局 */
-  align-items: center; /* 垂直方向上居中对齐子元素 */
-}
-
-.label {
-  margin-right: 10px; /* 给文字和输入框之间添加一些间隔 */
-}
-
-</style>

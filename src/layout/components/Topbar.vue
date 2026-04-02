@@ -1,63 +1,85 @@
 <template>
   <div class="top-nav">
-    <div class="logo">
-      <router-link to="/topology">
-        Hcrinx
-      </router-link>
-    </div>
-    <el-menu :default-active="activeMenu" active-text-color="#0000000" mode="horizontal" @select="handleSelect">
-      <div v-for="item in routes" :key="item.path" class="nav-item">
-        <app-link v-if="showApp" :to="resolvePath(item)">
-          <el-menu-item v-if="!item.hidden&&item.place===1&&checkRole(item.role)" :index="item.path">
-            {{ item.meta ? item.meta.title : item.children[0].meta.title }}
-          </el-menu-item>
-        </app-link>
-      </div>
-    </el-menu>
-    <div v-if="showApp" class="appChoose"><span>{{ chooseApp }}</span></div>
-    <div class="right-btn">
-      <router-link to="/">
-        <el-tooltip :open-delay=800 class="item" content="主页" effect="dark" placement="bottom">
-          <el-link :underline="false"><i class="el-icon-s-home iconBtn"></i></el-link>
-        </el-tooltip>
-      </router-link>
-      <div v-if="username==='admin'&&!showApp">
-        <router-link to="/setting">
-          <el-tooltip :open-delay=800 class="item" content="设置" effect="dark" placement="bottom">
-            <el-link :underline="false"><i class="el-icon-setting iconBtn"></i></el-link>
-          </el-tooltip>
+    <div class="top-nav__inner">
+      <div class="top-nav__left">
+        <router-link class="logo" to="/topology">
+          <span class="logo-mark">H</span>
+          <span class="logo-text">Hcrinx</span>
         </router-link>
-        <router-link to="/syslog">
-          <el-tooltip :open-delay=800 class="item" content="系统日志" effect="dark" placement="bottom">
-            <el-link :underline="false"><i class="el-icon-s-order iconBtn"></i></el-link>
-          </el-tooltip>
-        </router-link>
+        <el-menu
+          class="nav-menu"
+          :default-active="activeMenu"
+          mode="horizontal"
+          text-color="#475569"
+          active-text-color="#2563eb"
+          @select="handleSelect"
+        >
+          <div v-for="item in routes" :key="item.path" class="nav-item">
+            <app-link v-if="showApp" :to="resolvePath(item)">
+              <el-menu-item v-if="!item.hidden&&item.place===1&&checkRole(item.role)" :index="item.path">
+                {{ item.meta ? item.meta.title : item.children[0].meta.title }}
+              </el-menu-item>
+            </app-link>
+          </div>
+        </el-menu>
       </div>
-      <div v-if="showApp" v-for="item in routes" :key="item.path">
-        <router-link v-if="!item.hidden&&item.place===2&&checkRole(item.role)" :to="resolvePath(item)">
-          <el-tooltip :open-delay=800 class="item" :content="item.meta ? item.meta.title : item.children[0].meta.title" effect="dark" placement="bottom">
-            <el-link :underline="false"><i :class="[item.icon ,'iconBtn']"></i></el-link>
-          </el-tooltip>
-        </router-link>
-      </div>
-      <el-dropdown class="user-container">
-        <el-link :underline="false">
-          <el-avatar style="background:#044477;width: 45px;height: 45px;line-height: 45px;"> {{ username }}</el-avatar>
-        </el-link>
-        <el-dropdown-menu v-slot="dropdown" class="user-dropdown">
-          <router-link to="/user">
-            <el-dropdown-item>个人信息</el-dropdown-item>
-          </router-link>
-          <router-link to="/help">
-            <el-dropdown-item>使用帮助</el-dropdown-item>
-          </router-link>
-          <el-dropdown-item divided @click.native="logout">
-            <span style="display: block; color: red">退出登录</span>
-          </el-dropdown-item>
-        </el-dropdown-menu>
-      </el-dropdown>
-    </div>
 
+      <div v-if="showApp" class="appChoose">
+        <i class="el-icon-collection-tag"></i>
+        <span class="appChoose__text">{{ chooseApp }}</span>
+        <span class="appChoose__env">{{ envLabel }}</span>
+      </div>
+
+      <div class="right-btn">
+        <span v-if="!showApp && envLabel" class="env-badge">{{ envLabel }}</span>
+
+        <router-link class="icon-link" to="/">
+          <el-tooltip :open-delay="800" class="item" content="主页" effect="dark" placement="bottom">
+            <el-link :underline="false"><i class="el-icon-s-home iconBtn"></i></el-link>
+          </el-tooltip>
+        </router-link>
+
+        <div v-if="username==='admin'&&!showApp" class="quick-actions">
+          <router-link class="icon-link" to="/setting">
+            <el-tooltip :open-delay="800" class="item" content="设置" effect="dark" placement="bottom">
+              <el-link :underline="false"><i class="el-icon-setting iconBtn"></i></el-link>
+            </el-tooltip>
+          </router-link>
+          <router-link class="icon-link" to="/syslog">
+            <el-tooltip :open-delay="800" class="item" content="系统日志" effect="dark" placement="bottom">
+              <el-link :underline="false"><i class="el-icon-s-order iconBtn"></i></el-link>
+            </el-tooltip>
+          </router-link>
+        </div>
+
+        <div v-if="showApp" class="quick-actions">
+          <div v-for="item in routes" :key="item.path">
+            <router-link v-if="!item.hidden&&item.place===2&&checkRole(item.role)" class="icon-link" :to="resolvePath(item)">
+              <el-tooltip :open-delay="800" class="item" :content="item.meta ? item.meta.title : item.children[0].meta.title" effect="dark" placement="bottom">
+                <el-link :underline="false"><i :class="[item.icon, 'iconBtn']"></i></el-link>
+              </el-tooltip>
+            </router-link>
+          </div>
+        </div>
+
+        <el-dropdown class="user-container">
+          <el-link :underline="false" class="avatar-link">
+            <el-avatar class="user-avatar">{{ avatarText }}</el-avatar>
+          </el-link>
+          <el-dropdown-menu slot="dropdown" class="user-dropdown">
+            <router-link to="/user">
+              <el-dropdown-item>个人信息</el-dropdown-item>
+            </router-link>
+            <router-link to="/help">
+              <el-dropdown-item>使用帮助</el-dropdown-item>
+            </router-link>
+            <el-dropdown-item divided @click.native="logout">
+              <span class="logout-text">退出登录</span>
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </el-dropdown>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -65,7 +87,6 @@
 import AppLink from "./Link";
 import {constantRoutes} from "@/router";
 import {isExternal} from "@/utils/validate";
-import Cookies from "js-cookie";
 
 export default {
   name: "Topbar",
@@ -73,10 +94,11 @@ export default {
     AppLink,
   },
   data() {
+    const userInfo = JSON.parse(localStorage.getItem("hcrinx_user") || "{}");
     return {
       routes: constantRoutes,
       select: {},
-      username: JSON.parse(localStorage.getItem("hcrinx_user")).userid,
+      username: userInfo.userid || "user",
       env: localStorage.getItem("env"),
     };
   },
@@ -87,61 +109,63 @@ export default {
       if (meta.activeMenu) {
         return meta.activeMenu;
       }
-      // 如果是首页，首页高亮
       if (path === "/home") {
         return "/";
       }
-      // 如果不是首页，高亮一级菜单
       return "/" + path.split("/")[1];
     },
     chooseApp() {
       if (this.showApp) {
-        let appInfo = JSON.parse(localStorage.getItem("app"))
-        return (
-          appInfo.app + "-" + appInfo.name
-        );
+        const appInfo = JSON.parse(localStorage.getItem("app") || "null");
+        if (appInfo && appInfo.app) {
+          return appInfo.app + " - " + appInfo.name;
+        }
       }
       return "";
     },
     showApp() {
-      return ['/', '/home', '/user', '/topology', '/syslog'].indexOf(this.activeMenu) === -1;
+      return ["/", "/home", "/user", "/topology", "/syslog"].indexOf(this.activeMenu) === -1;
+    },
+    envLabel() {
+      return (this.env || "prod").toUpperCase();
+    },
+    avatarText() {
+      return this.username ? this.username.slice(0, 1).toUpperCase() : "U";
     },
   },
   mounted() {
     this.initCurrentRoutes();
   },
   methods: {
-    // 通过当前路径找到二级菜单对应项，存到store，用来渲染左侧菜单
     initCurrentRoutes() {
       const {path} = this.$route;
       let route = this.routes.find((item) => {
         if (this.env !== 'dev' && (item.path === '/ops' || item.path === '/apimkt')) item.hidden = true;
         return item.path === "/" + path.split("/")[1]
       });
-      // 如果找不到这个路由，说明是首页
       if (!route) {
         route = this.routes.find((item) => item.path === "/");
       }
       this.$store.commit("permission/SET_CURRENT_ROUTES", route);
     },
     checkRole(itemRole) {
-      let appInfo = JSON.parse(localStorage.getItem("app"))
+      const appInfo = JSON.parse(localStorage.getItem("app") || "null");
+      if (!appInfo || appInfo.role == null) {
+        return false;
+      }
       return appInfo.role <= itemRole;
     },
     resolvePath(item) {
-      // 如果是个完成的url直接返回
       if (isExternal(item.path)) {
         return item.path;
       }
-      // 如果是首页，就返回重定向路由
       if (item.path === "/") {
         return item.redirect;
       }
       return item.path;
     },
-    handleSelect(key, keyPath) {
+    handleSelect(key) {
       this.select = key;
-      // 把选中路由的子路由保存store
       const route = this.routes.find((item) => item.path === key);
       this.$store.commit("permission/SET_CURRENT_ROUTES", route);
     },
@@ -152,112 +176,179 @@ export default {
   },
 };
 </script>
-<style lang="scss" scoped>
-.appcard {
-  padding: 22px;
-}
 
+<style lang="scss" scoped>
 .top-nav {
-  width: 100%;
   position: fixed;
   top: 0;
   left: 0;
   z-index: 1001;
-  overflow: hidden;
-  background: white;
-
-  .logo {
-    padding: 0 16px;
-    line-height: 56px;
-    font-size: 24px;
-    font-weight: bold;
-    color: #044477;
-    float: left;
-  }
-
-  .el-menu {
-    float: left;
-    border: none !important;
-
-    .nav-item {
-      display: inline-block;
-    }
-  }
-
-  .right-menu {
-    float: right;
-    height: 100%;
-
-    &:focus {
-      outline: none;
-    }
-
-    .right-menu-item {
-      display: inline-block;
-      padding: 0 8px;
-      height: 100%;
-      font-size: 18px;
-      color: #5a5e66;
-      vertical-align: text-bottom;
-    }
-
-    .user-container {
-      margin-right: 22px;
-      margin-left: 11px;
-
-      .user-wrapper {
-        margin-top: 20px;
-        position: relative;
-        font-size: 16px;
-      }
-    }
-  }
+  width: 100%;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(14px);
 }
 
-:deep(.el-dropdown) {
-  padding-left: 11px;
+.top-nav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 56px;
+  padding: 0 18px;
 }
 
-.el-carousel__item h3 {
-  color: #475669;
-  font-size: 14px;
-  opacity: 0.75;
-  line-height: 200px;
-  margin: 0;
+.top-nav__left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
 }
 
-.el-carousel__item:nth-child(n) {
-  background-color: #d3dce6;
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 18px;
+  flex-shrink: 0;
+}
+
+.logo-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #0f766e);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.26);
+}
+
+.logo-text {
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.nav-menu {
+  min-width: 0;
+  background: transparent;
+}
+
+.nav-item {
+  display: inline-block;
 }
 
 .appChoose {
-  text-align: center;
-  position: absolute;
-  width: 100%;
-  z-index: -1;
-  top: 15px;
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 34%;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  flex-shrink: 1;
+}
+
+.appChoose__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.appChoose__env,
+.env-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.right-btn,
+.quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .right-btn {
-  position: absolute;
+  flex-shrink: 0;
+}
+
+.icon-link,
+.avatar-link {
   display: flex;
   align-items: center;
-  right: 11px;
-  top: 6px;
-  font-size: 20px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.icon-link:hover,
+.avatar-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.15);
 }
 
 .iconBtn {
-  font-size: 22px;
-  padding: 6px;
+  font-size: 18px;
+  color: #1e3a8a;
 }
 
-.el-link.el-link--default {
-  color: #044477;
+.user-avatar {
+  background: linear-gradient(135deg, #2563eb, #0f766e);
+  width: 38px;
+  height: 38px;
+  line-height: 38px;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
+}
 
-  &:hover {
-    color: #caeeec;
-  }
+.logout-text {
+  display: block;
+  color: #ef4444;
+}
+
+::v-deep .nav-menu.el-menu--horizontal {
+  border-bottom: none;
+}
+
+::v-deep .nav-menu .el-menu-item {
+  height: 40px;
+  line-height: 40px;
+  margin: 0 4px;
+  padding: 0 16px;
+  border-bottom: none !important;
+  border-radius: 12px;
+  background: transparent;
+  font-weight: 600;
+}
+
+::v-deep .nav-menu .el-menu-item:hover {
+  background: rgba(37, 99, 235, 0.06);
+  color: #2563eb !important;
+}
+
+::v-deep .nav-menu .el-menu-item.is-active {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb !important;
+}
+
+::v-deep .el-link.el-link--default {
+  color: inherit;
 }
 </style>

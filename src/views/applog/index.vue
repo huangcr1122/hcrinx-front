@@ -1,195 +1,317 @@
 <template>
-  <div style="margin-top: 1px;">
-    <el-input v-model="rid" clearable placeholder="rid" size="small"
-              style="width: 150px;margin-left: 3px"></el-input>
-    <el-date-picker v-model="period" align="right" size="small" :picker-options="pickerOptions" range-separator="至"
-                    start-placeholder="开始时间" end-placeholder="结束时间"
-                    style="width: 350px;margin-left: 3px" type="datetimerange"
-                    :default-time="['08:00:00', '15:00:00']"></el-date-picker>
-    <el-input v-model="mincosttime" clearable @input="mincosttime = mincosttime.replace(/[^\d]/g, '')"
-              placeholder="最低时延" size="small" prefix-icon="el-icon-timer"
-              style="width: 115px;margin-left: 3px"></el-input>
-    <span>-</span>
-    <el-input v-model="maxcosttime" clearable @input="maxcosttime = maxcosttime.replace(/[^\d]/g, '')"
-              placeholder="最高时延" size="small" prefix-icon="el-icon-timer"
-              style="width: 115px;margin-left: 3px"></el-input>
-    <el-input v-model="clientip" clearable placeholder="IP" size="small"
-              style="width: 150px;margin-left: 3px"></el-input>
-    <el-input v-model="referer" clearable placeholder="Referer" size="small"
-              style="width: 150px;margin-left: 3px"></el-input>
-    <el-input v-model="useragent" clearable placeholder="UserAgent" size="small"
-              style="width: 150px;margin-left: 3px"></el-input>
-    <el-select v-model="fapp" clearable placeholder="调用方" size="small" style="width: 150px;margin-left: 3px" multiple collapse-tags>
-      <el-option v-for="item in historyCaller" :key="item" :label="item" :value="item"></el-option>
-    </el-select>
-    <el-select v-model="tappip" clearable filterable placeholder="服务方IP" size="small"
-               style="width: 140px;margin-left: 3px">
-      <el-option v-for="item in historyIp" :key="item" :label="item" :value="item"></el-option>
-    </el-select>
-    <el-cascader v-model="funcChoose" :options="historyFunc" :props="{checkStrictly:true }" clearable
-                 placeholder="选择请求模块或方法" filterable
-                 separator="/" size="small" style="width:250px;margin-left: 3px"></el-cascader>
-    <el-input v-model="sign" clearable @input="sign = sign.replace(/[^\d]/g, '')"
-              placeholder="签名令牌id" size="small" prefix-icon="el-icon-lock"
-              style="width: 115px;margin-left: 3px"></el-input>
-    <el-input v-model="request" clearable placeholder="请求参数搜索" size="small"
-              style="width: 250px;margin-left: 3px"></el-input>
-    <el-input v-model="code" clearable @input="code = code.replace(/[^\d-]/g, '')" placeholder="code" size="small"
-              style="width: 106px;margin-left: 3px"></el-input>
-    <el-input v-model="msg" clearable placeholder="msg" size="small"
-              style="width: 150px;margin-left: 3px"></el-input>
-    <el-input v-if="appInfo.role===1" v-model="response" clearable placeholder="data" size="small"
-              style="width: 280px;margin-left: 3px"></el-input>
-    <el-input v-model="minrpclog" clearable @input="minrpclog = minrpclog.replace(/[^\d]/g, '')"
-              placeholder="最小日志数" size="small" prefix-icon="el-icon-document"
-              style="width: 128px;margin-left: 3px"></el-input>
-    <span>-</span>
-    <el-input v-model="maxrpclog" clearable @input="maxrpclog = maxrpclog.replace(/[^\d]/g, '')"
-              placeholder="最大日志数" size="small" prefix-icon="el-icon-document"
-              style="width: 128px;margin-left: 3px"></el-input>
-    <el-checkbox v-model="noCache" border label="隐藏缓存" size="small"
-                 style="margin-left: 3px;top:-2px;background-color: white;"></el-checkbox>
-    <el-checkbox v-model="queryError" border label="只看异常" size="small"
-                 style="margin-left: -28px;top:-2px;background-color: white;"></el-checkbox>
-    <el-button size="mini" style="margin-left: 3px" type="success" icon="el-icon-search" @click="getLogTable">搜索
-    </el-button>
-    <el-button-group style="position: fixed;right:3px;margin-top: 3px;z-index: 999">
-      <el-button size="mini" type="primary" icon="el-icon-arrow-left" :disabled="page===1" @click="getLogTablePre" style="padding-left: 7px;padding-right: 7px;">
-        上一页
-      </el-button>
-      <el-button size="mini" type="info" disabled style="height: 29px;background: #409eff;padding-left: 7px;padding-right: 7px;">第{{ page }}页
-      </el-button>
-      <el-button size="mini" type="primary" :disabled="tableData.length!==20" @click="getLogTableNext" style="padding-left: 7px;padding-right: 7px;">下一页<i
-        class="el-icon-arrow-right el-icon--right"></i></el-button>
-      <el-button size="mini" type="success" icon="el-icon-s-data" @click="getLogTableCount" style="padding-left: 7px;padding-right: 7px;">总数</el-button>
-    </el-button-group>
-    <br/>
-    <el-table :cell-class-name="tableRowClassName" v-loading="loading" :data="tableData" border size="mini"
-              height="84.4vh" style="overflow:auto;width: 100%;margin-top: 1px"
-              :header-cell-style="{'background-color': '#d3f9fa','color': '#000','padding':'1px','border':'1px solid #d7d7d7'}">
-      <el-table-column :formatter="x=>x.rid.replace(/-/g, '')" label="rid" prop="rid" width="100"></el-table-column>
-      <el-table-column label="时间(毫秒)">
-        <el-table-column label="时间戳" prop="ts" width="91"></el-table-column>
-        <el-table-column label="时延" prop="costtime" width="50"></el-table-column>
-      </el-table-column>
-      <el-table-column label="HTTP网关">
-        <el-table-column label="IP" prop="clientip" width="88"></el-table-column>
-        <el-table-column label="Referer" prop="referer" width="90">
+  <div class="page-shell rpc-log-page">
+    <div class="page-header">
+      <div class="page-header__main">
+        <div class="page-header__title">调用日志总览</div>
+        <div class="page-header__desc">
+          聚合 HTTP、RPC 与定时作业调用记录，支持按链路、耗时、返回结果与日志量进行精细筛查。
+        </div>
+      </div>
+      <div class="page-header__meta">
+        <el-tag size="small">应用：{{ app }}</el-tag>
+        <el-tag size="small" :type="queryError ? 'danger' : 'success'">{{ queryError ? '仅异常' : '全部结果' }}</el-tag>
+      </div>
+    </div>
+
+
+    <el-card class="panel-card">
+      <div class="panel-header">
+        <div class="panel-header__main">
+          <div class="panel-title">筛选条件</div>
+          <div class="panel-subtitle">建议先按时间范围、模块函数和异常状态缩小结果集，再查看详细请求与返回内容。</div>
+        </div>
+        <div class="panel-header__actions">
+          <el-button size="small" @click="resetFilters">清空筛选</el-button>
+          <el-button size="small" type="primary" icon="el-icon-search" @click="getLogTable">查询</el-button>
+          <el-button size="small" type="success" icon="el-icon-data-analysis" @click="getLogTableCount">统计总数</el-button>
+        </div>
+
+      </div>
+      <div class="filter-grid filter-grid--dense">
+        <el-input v-model="rid" clearable placeholder="RID" size="small" />
+        <el-date-picker
+          v-model="period"
+          class="filter-grid__range"
+          :default-time="['08:00:00', '15:00:00']"
+          :picker-options="pickerOptions"
+          align="right"
+          end-placeholder="结束时间"
+          range-separator="至"
+          size="small"
+          start-placeholder="开始时间"
+          type="datetimerange"
+        />
+
+        <el-input
+          v-model="mincosttime"
+          clearable
+          placeholder="最低时延(ms)"
+          prefix-icon="el-icon-timer"
+          size="small"
+          @input="mincosttime = mincosttime.replace(/[^\d]/g, '')"
+        />
+        <el-input
+          v-model="maxcosttime"
+          clearable
+          placeholder="最高时延(ms)"
+          prefix-icon="el-icon-timer"
+          size="small"
+          @input="maxcosttime = maxcosttime.replace(/[^\d]/g, '')"
+        />
+        <el-input v-model="clientip" clearable placeholder="客户端 IP" size="small" />
+        <el-input v-model="referer" clearable placeholder="Referer" size="small" />
+        <el-input v-model="useragent" clearable placeholder="UserAgent" size="small" />
+        <el-select v-model="fapp" clearable collapse-tags multiple placeholder="调用方" size="small">
+          <el-option v-for="item in historyCaller" :key="item" :label="item" :value="item" />
+        </el-select>
+        <el-select v-model="tappip" clearable filterable placeholder="服务方 IP" size="small">
+          <el-option v-for="item in historyIp" :key="item" :label="item" :value="item" />
+        </el-select>
+        <el-cascader
+          v-model="funcChoose"
+          :options="historyFunc"
+          :props="{ checkStrictly: true }"
+          clearable
+          filterable
+          placeholder="模块 / 方法"
+          separator="/"
+          size="small"
+        />
+        <el-input
+          v-model="sign"
+          clearable
+          placeholder="签名令牌 ID"
+          prefix-icon="el-icon-lock"
+          size="small"
+          @input="sign = sign.replace(/[^\d]/g, '')"
+        />
+        <el-input v-model="request" clearable placeholder="请求参数搜索" size="small" />
+        <el-input
+          v-model="code"
+          clearable
+          placeholder="返回 code"
+          size="small"
+          @input="code = code.replace(/[^\d-]/g, '')"
+        />
+        <el-input v-model="msg" clearable placeholder="返回 msg" size="small" />
+        <el-input v-if="hasResponsePermission" v-model="response" clearable placeholder="返回 data 搜索" size="small" />
+        <el-input
+          v-model="minrpclog"
+          clearable
+          placeholder="最小日志数"
+          prefix-icon="el-icon-document"
+          size="small"
+          @input="minrpclog = minrpclog.replace(/[^\d]/g, '')"
+        />
+        <el-input
+          v-model="maxrpclog"
+          clearable
+          placeholder="最大日志数"
+          prefix-icon="el-icon-document"
+          size="small"
+          @input="maxrpclog = maxrpclog.replace(/[^\d]/g, '')"
+        />
+      </div>
+      <div class="rpc-log-page__switches">
+        <el-checkbox v-model="noCache" border size="small">隐藏缓存</el-checkbox>
+        <el-checkbox v-model="queryError" border size="small">只看异常</el-checkbox>
+      </div>
+    </el-card>
+
+    <el-card class="panel-card">
+      <div class="panel-header">
+        <div class="panel-header__main">
+          <div class="panel-title">日志列表</div>
+          <div class="panel-subtitle">共展示 {{ tableData.length }} 条记录，支持查看调用链、缓存内容与函数日志。</div>
+        </div>
+        <div class="panel-header__actions rpc-log-page__pager">
+          <el-button size="small" type="primary" plain :disabled="page === 1" icon="el-icon-arrow-left" @click="getLogTablePre">上一页</el-button>
+          <el-tag type="info">第 {{ page }} 页</el-tag>
+          <el-button size="small" type="primary" plain :disabled="tableData.length !== 20" @click="getLogTableNext">下一页<i class="el-icon-arrow-right el-icon--right"></i></el-button>
+        </div>
+      </div>
+      <el-table
+        :cell-class-name="tableRowClassName"
+        :data="tableData"
+        v-loading="loading"
+        border
+        size="mini"
+        height="calc(100vh - 360px)"
+      >
+
+        <el-table-column label="RID" prop="rid" width="126">
           <template slot-scope="scope">
-            <span class="httptext">{{ scope.row.referer }}</span>
-            <el-link v-if="scope.row.referer.length>32" :underline="false"
-                     style="position: absolute;right: 0;bottom: -6px;" @click="showRpcMsg(scope.row.referer)">
+            <div class="rpc-log-page__rid-cell">
+              <span class="mono-text">{{ scope.row.rid.replace(/-/g, '') }}</span>
+              <el-button type="text" icon="el-icon-document-copy" @click="copyText(scope.row.rid, 'RID')" />
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="时间(毫秒)">
+          <el-table-column label="时间戳" prop="ts" width="96" />
+          <el-table-column label="时延" prop="costtime" width="58" />
+        </el-table-column>
+        <el-table-column label="HTTP网关">
+          <el-table-column label="IP" prop="clientip" width="96" />
+          <el-table-column label="Referer" prop="referer" width="130">
+            <template slot-scope="scope">
+              <span class="httptext">{{ scope.row.referer }}</span>
+              <el-link
+                v-if="scope.row.referer && scope.row.referer.length > 32"
+                :underline="false"
+                class="rpc-log-page__view-link"
+                @click="showRpcMsg(scope.row.referer)"
+              >
+                <i class="el-icon-view"></i>
+              </el-link>
+            </template>
+          </el-table-column>
+          <el-table-column label="UserAgent" prop="useragent" width="130">
+            <template slot-scope="scope">
+              <span class="httptext">{{ scope.row.useragent }}</span>
+              <el-link
+                v-if="scope.row.useragent && scope.row.useragent.length > 32"
+                :underline="false"
+                class="rpc-log-page__view-link"
+                @click="showRpcMsg(scope.row.useragent)"
+              >
+                <i class="el-icon-view"></i>
+              </el-link>
+            </template>
+          </el-table-column>
+        </el-table-column>
+        <el-table-column label="调用方" width="120">
+          <template slot-scope="scope">
+            <div class="rpc-log-page__caller-cell">
+              <div>{{ formatCaller(scope.row.fapp) }}</div>
+              <div class="muted-text mono-text">{{ scope.row.fappip }}</div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="服务方IP" prop="tappip" width="108" />
+        <el-table-column label="方法" prop="func" width="150">
+          <template slot-scope="scope">
+            <span :style="rowHighlightStyle(scope.row)">{{ scope.row.func }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="请求包" prop="request" min-width="200">
+          <template slot-scope="scope">
+            <div :style="rowHighlightStyle(scope.row)" class="httptext" v-text="scope.row.request"></div>
+            <el-link
+              v-if="scope.row.request && scope.row.request.length > 128"
+              :underline="false"
+              class="rpc-log-page__view-link"
+              @click="showJsonWin(scope.row.request)"
+            >
               <i class="el-icon-view"></i>
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column label="UserAgent" prop="useragent" width="90">
+        <el-table-column label="返回包">
+          <el-table-column label="code" prop="code" width="68">
+            <template slot-scope="scope">
+              <span :style="rowHighlightStyle(scope.row)">{{ scope.row.code }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="msg" prop="msg" width="140">
+            <template slot-scope="scope">
+              <span class="httptext" :style="rowHighlightStyle(scope.row)">{{ scope.row.msg }}</span>
+              <el-link
+                v-if="scope.row.msg && scope.row.msg.length > 32"
+                :underline="false"
+                class="rpc-log-page__view-link"
+                @click="showRpcMsg(scope.row.msg)"
+              >
+                <i class="el-icon-view"></i>
+              </el-link>
+            </template>
+          </el-table-column>
+          <el-table-column label="data" prop="response" width="128">
+            <template slot-scope="scope">
+              <el-link
+                v-if="scope.row.response !== '0'"
+                :type="scope.row.errcode > 80 ? 'danger' : scope.row.rpclog < 0 ? 'warning' : 'primary'"
+                :underline="false"
+                @click="showCache(scope.row)"
+              >
+                <span v-if="scope.row.errcode !== 17 && scope.row.errcode !== 18 && scope.row.errcode !== 20">
+                  {{ formatResSize(scope.row.response) }}
+                </span>
+                <span v-if="scope.row.errcode === 17" style="color: #0ea5e9">HTTP 重定向</span>
+                <span v-if="(scope.row.errcode === 18 || scope.row.errcode === 20) && scope.row.response.length === 32" style="color: #10b981">
+                  HTTP 缓存
+                </span>
+              </el-link>
+            </template>
+          </el-table-column>
+        </el-table-column>
+        <el-table-column label="调用链" prop="trace" width="86">
           <template slot-scope="scope">
-            <span class="httptext">{{ scope.row.useragent }}</span>
-            <el-link v-if="scope.row.useragent.length>32" :underline="false"
-                     style="position: absolute;right: 0;bottom: -6px;" @click="showRpcMsg(scope.row.useragent)">
-              <i class="el-icon-view"></i>
+            <el-link v-if="scope.row.trace && scope.row.trace.length > 0" :underline="false" @click="showTraceTable(scope.row)">
+              <i class="el-icon-connection el-icon--right"></i>
             </el-link>
           </template>
         </el-table-column>
-      </el-table-column>
-      <el-table-column :formatter="x=>(x.fapp==='router'?'http网关':x.fapp==='cron'?'定时作业':x.fapp)+'\n'+x.fappip"
-                       label="调用方" prop="fapp" width="100"></el-table-column>
-      <el-table-column label="服务方IP" prop="tappip" width="100"></el-table-column>
-      <el-table-column label="方法" prop="func" width="140">
-        <template slot-scope="scope">
-          <span :style="scope.row.errcode>80?'color:red':scope.row.rpclog<0?'color:#E6A23C':''">{{
-              scope.row.func
-            }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="请求包" prop="request">
-        <template slot-scope="scope">
-          <div :style="scope.row.errcode>80?'color:red':scope.row.rpclog<0?'color:#E6A23C':''" class="httptext"
-               v-text="scope.row.request"></div>
-          <el-link v-if="scope.row.request.length>128" :underline="false"
-                   style="position: absolute;right: 0;bottom: -6px;" @click="showJsonWin(scope.row.request)">
-            <i class="el-icon-view"></i></el-link>
-        </template>
-      </el-table-column>
-      <el-table-column label="返回包">
-        <el-table-column label="code" prop="code" width="60">
+        <el-table-column label="函数日志" prop="rpclog" width="96">
           <template slot-scope="scope">
-          <span :style="scope.row.errcode>80?'color:red':scope.row.rpclog<0?'color:#E6A23C':''">{{
-              scope.row.code
-            }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="msg" prop="msg" width="100">
-          <template slot-scope="scope">
-            <span class="httptext" :style="scope.row.errcode>80?'color:red':scope.row.rpclog<0?'color:#E6A23C':''">{{ scope.row.msg }}</span>
-            <el-link v-if="scope.row.msg.length>32" :underline="false" style="position: absolute;right: 0;bottom: -6px;"
-                     @click="showRpcMsg(scope.row.msg)">
-              <i class="el-icon-view"></i>
+            <el-link
+              v-if="scope.row.rpclog !== 0"
+              :type="scope.row.errcode > 80 ? 'danger' : scope.row.rpclog < 0 ? 'warning' : 'primary'"
+              :underline="false"
+              @click="showCacheLog(scope.row)"
+            >
+              {{ Math.abs(scope.row.rpclog) }} 条
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column label="data" prop="response" width="100">
-          <template slot-scope="scope">
-            <el-link v-if="scope.row.response!=='0'"
-                     :type="scope.row.errcode>80?'danger':scope.row.rpclog<0?'warning':'primary'" :underline="false"
-                     @click="showCache(scope.row)">
-              <span v-if="scope.row.errcode!==18&&scope.row.errcode!==20&&scope.row.errcode!==17">{{ formatResSize(scope.row.response) }}</span>
-              <span v-if="scope.row.errcode===17" style="color: #00bcd4">HTTP重定向</span>
-              <span v-if="(scope.row.errcode===18||scope.row.errcode===20)&&scope.row.response.length===32" style="color: #40b3b3">HTTP缓存</span>
-            </el-link>
-          </template>
-        </el-table-column>
-      </el-table-column>
-      <el-table-column label="调用链" prop="trace" width="80">
-        <template v-slot="scope">
-          <el-link v-if="scope.row.trace.length>0" :underline="false" @click="showTraceTable(scope.row)"><i
-            class="el-icon-connection el-icon--right"></i></el-link>
-        </template>
-      </el-table-column>
-      <el-table-column label="函数日志" prop="rpclog" width="80">
-        <template slot-scope="scope">
-          <el-link v-if="scope.row.rpclog!==0"
-                   :type="scope.row.errcode>80?'danger':scope.row.rpclog<0?'warning':'primary'"
-                   :underline="false" @click="showCacheLog(scope.row)">
-            {{ Math.abs(scope.row.rpclog) }}条日志
-          </el-link>
-        </template>
-      </el-table-column>
-    </el-table>
-    <br/>
-    <el-dialog :visible.sync="traceTableVisible" width="99%" title="调用链">
-      <div ref="trace0" style="height: 800px; width: 100vw;"></div>
+      </el-table>
+    </el-card>
+
+    <el-dialog :visible.sync="traceTableVisible" title="调用链" width="99%" custom-class="compact-dialog">
+
+      <div ref="trace0" style="height: 800px; width: 100%;"></div>
     </el-dialog>
-    <el-dialog :visible.sync="showJson" title="" width="66%">
-      <json-viewer :boxed="true" :copyable="true" :expand-depth="8" show-double-quotes :show-array-index="false"
-                   :value="jsonData" sort></json-viewer>
+
+    <el-dialog :visible.sync="showJson" width="66%" title="数据预览" custom-class="compact-dialog">
+
+      <json-viewer
+        :boxed="true"
+        :copyable="true"
+        :expand-depth="8"
+        :show-array-index="false"
+        :value="jsonData"
+        show-double-quotes
+        sort
+      />
       <span slot="footer" class="dialog-footer">
         <el-button type="primary" @click="showJson = false">确 定</el-button>
       </span>
     </el-dialog>
-    <el-dialog :visible.sync="showMsg" title="查看详情" width="98%">
-      <span style="line-height: 22px;white-space: pre-wrap;">{{ rpcMsg }}</span>
+
+    <el-dialog :visible.sync="showMsg" title="查看详情" width="98%" custom-class="compact-dialog">
+
+      <span class="rpc-log-page__detail-text">{{ rpcMsg }}</span>
       <span slot="footer" class="dialog-footer">
         <el-button type="primary" @click="showMsg = false">确 定</el-button>
       </span>
     </el-dialog>
-    <el-drawer :with-header="false" :visible.sync="showLog" direction="ltr" size="77%">
-      <ol v-if="rpcLog" class="infinite-list" v-infinite-scroll="load" style="overflow:auto;height: 97vh;margin-top: 11px;">
-        <li v-for='(item,index) in rpcLog' :key='index+""+item.ts' :style="{'line-height': '18px','white-space': 'pre-wrap','font-size': '14px',color:levelColor[item.level]}">
-          <span style="color: #047685;"> {{ item.ts }}  </span>
+
+    <el-drawer :with-header="false" :visible.sync="showLog" direction="ltr" size="74%">
+
+      <div class="log-stream rpc-log-page__drawer-log" v-infinite-scroll="load">
+        <div v-if="rpcLog.length === 0" class="muted-text">暂无日志，请继续滚动或稍后重试。</div>
+        <div v-for="(item, index) in rpcLog" :key="index + '' + item.ts" class="log-stream__item" :style="{ color: levelColor[item.level] }">
+          <span class="log-stream__meta">{{ item.ts }}</span>
           {{ '【' + logLevel[item.level] + '】' + item.clazz + '【' + item.method + ':' + item.line + '】 ' + item.content }}
-          <br>
-        </li>
-      </ol>
+        </div>
+      </div>
     </el-drawer>
   </div>
-
 </template>
 
 <script>
 import request from "@/utils/request";
-import 'vue-json-viewer/style.css'
+import 'vue-json-viewer/style.css';
 import Cookies from "js-cookie";
 import * as echarts from "echarts";
 
@@ -198,7 +320,7 @@ export default {
   data() {
     return {
       app: Cookies.get('app'),
-      appInfo: JSON.parse(localStorage.getItem("app")),
+      appInfo: JSON.parse(localStorage.getItem("app")) || {},
       period: [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 728 * 3600 * 1000), new Date()],
       logLevel: ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR'],
       levelColor: ['#9E9E9E', '#8BC34A', '#409EFF', '#E6A23C', '#ff0000'],
@@ -241,7 +363,6 @@ export default {
           onClick(picker) {
             const end = new Date();
             const start = new Date();
-            new Date()
             start.setTime(start.getTime() - start.getTime() % (24 * 3600 * 1000) - 8 * 3600 * 1000);
             picker.$emit('pick', [start, end]);
           }
@@ -281,29 +402,130 @@ export default {
         }]
       },
       rpcLogPage: 1,
-      rpcLogRid: null,
+      rpcLogRid: null
     };
+  },
+  computed: {
+    hasResponsePermission() {
+      return this.appInfo.role === 1;
+    },
+    activeFilterCount() {
+      return [
+        this.rid,
+        this.clientip,
+        this.useragent,
+        this.referer,
+        this.sign,
+        this.code,
+        this.msg,
+        this.request,
+        this.response,
+        this.mincosttime,
+        this.maxcosttime,
+        this.minrpclog,
+        this.maxrpclog,
+        this.tappip,
+        this.funcChoose,
+        this.fapp.length ? this.fapp : null,
+        this.queryError ? 1 : null,
+        this.noCache ? 1 : null
+      ].filter(item => item !== null && item !== undefined && item !== '' && !(Array.isArray(item) && item.length === 0)).length;
+    },
+    periodText() {
+      if (!this.period || !this.period[0] || !this.period[1]) {
+        return '-';
+      }
+      return `${this.period[0].format("MM-dd hh:mm")} 至 ${this.period[1].format("MM-dd hh:mm")}`;
+    }
   },
   mounted() {
     if (!this.app) {
-      this.$router.push({path: "/"});
+      this.$router.push({ path: "/" });
+      return;
     }
     this.getAppNodeAndFuncList();
   },
   methods: {
+    formatCaller(value) {
+      if (value === 'router') return 'HTTP网关';
+      if (value === 'cron') return '定时作业';
+      return value;
+    },
+    rowHighlightStyle(row) {
+      if (row.errcode > 80) {
+        return { color: '#ef4444' };
+      }
+      if (row.rpclog < 0) {
+        return { color: '#f59e0b' };
+      }
+      return {};
+    },
+    copyText(text, label) {
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          this.$message.success(`${label} 已复制`);
+        }).catch(() => {
+          this.fallbackCopyText(text, label);
+        });
+      } else {
+        this.fallbackCopyText(text, label);
+      }
+    },
+    fallbackCopyText(text, label) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        this.$message.success(`${label} 已复制`);
+      } catch (e) {
+        this.$message.warning('复制失败，请手动复制');
+      }
+      document.body.removeChild(textarea);
+    },
+    resetFilters() {
+      this.page = 1;
+      this.rid = null;
+      this.clientip = null;
+      this.useragent = null;
+      this.referer = null;
+      this.sign = null;
+      this.code = null;
+      this.msg = null;
+      this.request = null;
+      this.response = null;
+      this.mincosttime = null;
+      this.maxcosttime = null;
+      this.minrpclog = null;
+      this.maxrpclog = null;
+      this.fapp = [];
+      this.tappip = null;
+      this.funcChoose = null;
+      this.queryError = false;
+      this.noCache = false;
+      this.period = [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 728 * 3600 * 1000), new Date()];
+      this.getLogTable();
+    },
     load() {
+      if (!this.rpcLogRid) {
+        return;
+      }
       request({
         url: "/admin/rpclog/getRpcLog",
         params: {
           page: this.rpcLogPage,
-          rid: this.rpcLogRid,
-        },
+          rid: this.rpcLogRid
+        }
       }).then((res) => {
         if (res.data.length !== 0) {
           this.rpcLogPage++;
           res.data.map(x => this.rpcLog.push(x));
         }
-      })
+      });
     },
     showRpcMsg(item) {
       this.showMsg = true;
@@ -314,6 +536,7 @@ export default {
       this.rpcLogPage = 1;
       this.rpcLogRid = item.rid;
       this.showLog = true;
+      this.load();
     },
     showJsonWin(item) {
       this.showJson = true;
@@ -321,7 +544,11 @@ export default {
       if (item.indexOf('<span style="color:red">') !== -1) {
         json = item.replace('<span style="color:red">', '').replace('</span>', '');
       }
-      this.jsonData = JSON.parse(json);
+      try {
+        this.jsonData = JSON.parse(json);
+      } catch (e) {
+        this.jsonData = { raw: json };
+      }
     },
     showTraceTable(item) {
       this.loading = true;
@@ -329,14 +556,13 @@ export default {
         url: "/admin/rpclog/getTraceMemos",
         params: {
           rid: item.rid,
-          trace: item.trace,
-        },
+          trace: item.trace
+        }
       }).then((res) => {
-        this.loading = false;
         this.traceTableVisible = true;
         item.children = res.data;
         item.response0 = res.msg;
-        let data = {
+        const data = {
           app: item.fapp,
           appip: item.fappip,
           type: 'node',
@@ -349,11 +575,20 @@ export default {
         this.$nextTick(() => {
           if (item.fapp === 'router') {
             data.app = '网关';
-            this.initEchartsTrace0({app: 'HTTP客户端', appip: item.clientip, type: 'node', useragent: item.useragent, referer: item.referer, children: [data]});
+            this.initEchartsTrace0({
+              app: 'HTTP客户端',
+              appip: item.clientip,
+              type: 'node',
+              useragent: item.useragent,
+              referer: item.referer,
+              children: [data]
+            });
           } else {
             this.initEchartsTrace0(data);
           }
         });
+      }).finally(() => {
+        this.loading = false;
       });
     },
     formatTraceData(data) {
@@ -361,9 +596,9 @@ export default {
       return data.map(x => {
         x.type = 'line';
         x.symbolSize = 0.1;
-        x.emphasis = {symbolSize: 0.1, itemStyle: {color: 'transparent'}, lineStyle: {width: 3, color: '#bbb', opacity: 1}};
-        x.itemStyle = {color: 'transparent'};
-        x.label = {show: true, position: [-66, -7], color: x.errcode > 80 ? '#f80000' : x.rpclog < 0 ? '#E6A23C' : '#5ba900', fontSize: 12};
+        x.emphasis = { symbolSize: 0.1, itemStyle: { color: 'transparent' }, lineStyle: { width: 3, color: '#bbb', opacity: 1 } };
+        x.itemStyle = { color: 'transparent' };
+        x.label = { show: true, position: [-66, -7], color: x.errcode > 80 ? '#f80000' : x.rpclog < 0 ? '#E6A23C' : '#5ba900', fontSize: 12 };
         x.children = [{
           type: 'node',
           app: x.tapp,
@@ -383,9 +618,8 @@ export default {
         url: "/admin/rpclog/getCache",
         params: {
           rid: (item.errcode === 18 || item.errcode === 20) ? item.response : item.rid
-        },
+        }
       }).then((res) => {
-        this.loading = false;
         this.showJson = true;
         let response = res.data.response;
         if (response != null && response.length > 0) {
@@ -393,13 +627,19 @@ export default {
             response = '"' + response + '"';
           }
         }
-        this.jsonData = JSON.parse(response);
+        try {
+          this.jsonData = JSON.parse(response);
+        } catch (e) {
+          this.jsonData = { raw: response };
+        }
+      }).finally(() => {
+        this.loading = false;
       });
     },
     getAppNodeAndFuncList() {
       request({
         url: "/admin/home/getAppNodeAndFuncList",
-        params: {},
+        params: {}
       }).then((res) => {
         this.historyCaller = res.data.app.map(x => x.replace('cron', '定时作业').replace('router', 'http网关'));
         this.historyIp = res.data.ipaddr;
@@ -409,11 +649,11 @@ export default {
     tableRowClassName(index) {
       if (index.columnIndex === 1 || index.columnIndex === 12) {
         if (index.row.errcode > 80) {
-          return "error-row";
-        } else {
-          return "success-row";
+          return 'error-row';
         }
+        return 'success-row';
       }
+      return '';
     },
     getLogTable() {
       this.page = 1;
@@ -460,14 +700,13 @@ export default {
           func: (this.funcChoose == null || this.funcChoose[0] == null || this.funcChoose[1] == null) ? null : (this.app + '/' + this.funcChoose[0] + '/' + this.funcChoose[1]),
           module: this.funcChoose == null ? null : this.funcChoose[0],
           queryError: this.queryError ? 1 : 0,
-          noCache: this.noCache ? 1 : 0,
-        },
+          noCache: this.noCache ? 1 : 0
+        }
       }).then((res) => {
-        this.loading = false;
         if (res.code === 0) this.tableData = res.data;
-      }).catch((err) => {
+      }).finally(() => {
         this.loading = false;
-      })
+      });
     },
     getLogTableCount() {
       this.loading = true;
@@ -495,39 +734,41 @@ export default {
           func: (this.funcChoose == null || this.funcChoose[0] == null || this.funcChoose[1] == null) ? null : (this.app + '/' + this.funcChoose[0] + '/' + this.funcChoose[1]),
           module: this.funcChoose == null ? null : this.funcChoose[0],
           queryError: this.queryError ? 1 : 0,
-          noCache: this.noCache ? 1 : 0,
-        },
+          noCache: this.noCache ? 1 : 0
+        }
       }).then((res) => {
-        this.loading = false;
         if (res.code === 0) {
-          this.$alert('总计' + res.data + '条', '总数', {
+          this.$alert('总计 ' + res.data + ' 条', '总数', {
             confirmButtonText: '确定'
           });
         }
-      }).catch((err) => {
+      }).finally(() => {
         this.loading = false;
-      })
+      });
     },
     formatResSize(reslen) {
       if (reslen < 1000) {
         return reslen + 'B';
       } else if (reslen < 1000000) {
         return (reslen / 1024).toFixed(2) + 'KB';
-      } else {
-        return (reslen / 1024 / 1024).toFixed(2) + 'MB';
       }
+      return (reslen / 1024 / 1024).toFixed(2) + 'MB';
     },
     initEchartsTrace0(data) {
-      echarts.init(this.$refs.trace0).setOption({
+      const chart = echarts.getInstanceByDom(this.$refs.trace0) || echarts.init(this.$refs.trace0);
+      chart.setOption({
         title: {},
         tooltip: {
-          trigger: 'item', triggerOn: 'mousemove', enterable: true, formatter: function (params) { // params 是一个包含当前节点信息的对象
+          trigger: 'item',
+          triggerOn: 'mousemove',
+          enterable: true,
+          formatter: function(params) {
             const nodeData = params.data;
             if (nodeData.type === 'line') {
               return `<div style="font-size: 13px;line-height: 16px;width: 800px;">
                 <p><span style="color: #80918e;width: 60px; display: inline-block;line-height: 10px">调用时间</span>:&nbsp;&nbsp;${nodeData.ts}</p>
                 <p><span style="color: #80918e;width: 60px; display: inline-block;line-height: 10px">调用方法</span>:&nbsp;&nbsp;${nodeData.func}</p>
-                <p><span style="color: #80918e;width: 60px; display: inline-block;line-height: 10px">请求rid</span>:&nbsp;&nbsp;${nodeData.rid.replaceAll("-", "")}</p>
+                <p><span style="color: #80918e;width: 60px; display: inline-block;line-height: 10px">请求rid</span>:&nbsp;&nbsp;${nodeData.rid.replaceAll('-', '')}</p>
                 <p style="display: -webkit-box;overflow: hidden;white-space: normal !important;text-overflow: ellipsis;word-wrap: break-word;-webkit-line-clamp: 5;  -webkit-box-orient: vertical;">
                 <span style="color: #80918e;width: 60px; display: inline-block;line-height: 10px">请求参数</span>:&nbsp;&nbsp;${nodeData.request}</p>
               </div>`;
@@ -538,7 +779,7 @@ export default {
                     <p><span style="color: #80918e;width: 60px; display: inline-block;line-height: 10px">IP地址</span>:&nbsp;&nbsp;${nodeData.appip}</p>
                     <p style="display: -webkit-box;overflow: hidden;white-space: normal !important;text-overflow: ellipsis;word-wrap: break-word;-webkit-line-clamp: 5;  -webkit-box-orient: vertical;">
                     <span style="color: #80918e;width: 60px; display: inline-block;line-height: 10px">UA</span>:&nbsp;&nbsp;${nodeData.useragent}</p>
-                    <p  style="display: -webkit-box;overflow: hidden;white-space: normal !important;text-overflow: ellipsis;word-wrap: break-word;-webkit-line-clamp: 5;  -webkit-box-orient: vertical;">
+                    <p style="display: -webkit-box;overflow: hidden;white-space: normal !important;text-overflow: ellipsis;word-wrap: break-word;-webkit-line-clamp: 5;  -webkit-box-orient: vertical;">
                     <span style="color: #80918e;width: 60px; display: inline-block;line-height: 10px">Referer</span>:&nbsp;&nbsp;${nodeData.referer}</p>
                 ` : `
                     <p><span style="color: #80918e;width: 60px; display: inline-block;line-height: 10px">APP</span>:&nbsp;&nbsp;${nodeData.app}</p>
@@ -552,33 +793,38 @@ export default {
           }
         },
         series: [{
-          type: 'tree', name: 'tree1', data: [data], symbolSize: 77, initialTreeDepth: 100, lineStyle: {width: 3, color: '#bbb', opacity: 1},
+          type: 'tree',
+          name: 'tree1',
+          data: [data],
+          symbolSize: 77,
+          initialTreeDepth: 100,
+          lineStyle: { width: 3, color: '#bbb', opacity: 1 },
           label: {
-            verticalAlign: 'middle', show: true, formatter: (params) => {
-              let paramData = params.data;
+            verticalAlign: 'middle',
+            show: true,
+            formatter: (params) => {
+              const paramData = params.data;
               if (paramData.type === 'line') return paramData.func;
-              else if (paramData.app === 'HTTP客户端') return paramData.app + "\n" + paramData.appip;
+              if (paramData.app === 'HTTP客户端') return paramData.app + "\n" + paramData.appip;
               return paramData.app + "\n" + paramData.appip + "\n" + paramData.costtime + "毫秒";
             }
           },
-          leaves: {label: {verticalAlign: 'middle'}}, expandAndCollapse: false
+          leaves: { label: { verticalAlign: 'middle' } },
+          expandAndCollapse: false
         }]
-      })
-    },
-  },
+      });
+    }
+  }
 };
 </script>
+
 <style lang="scss" scoped>
 .error-row {
-  color: #ff0000;
-}
-
-.warning-row {
-  color: #c3da04;
+  color: #ef4444;
 }
 
 .success-row {
-  color: #000000;
+  color: #0f172a;
 }
 
 .cell {
@@ -588,31 +834,76 @@ export default {
 .httptext {
   display: -webkit-box;
   overflow: hidden;
+  padding-right: 14px;
   white-space: normal !important;
   text-overflow: ellipsis;
   word-wrap: break-word;
-  -webkit-line-clamp: 3;
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
-.flex-prepend-input {
-  padding-top: 10px;
+.rpc-log-page__summary-grid {
+  margin-top: 14px;
 }
 
-.flex-prepend-input ::v-deep .el-input-group__prepend {
-  align-items: center; /* 垂直居中 */
-  min-width: 145px; /* 设置最小宽度 */
-  color: #30667c;
-  font-size: 14px;
+.rpc-log-page__summary-time {
+  font-size: 16px;
 }
 
-.flex-container {
-  display: flex; /* 开启Flex布局 */
-  align-items: center; /* 垂直方向上居中对齐子元素 */
+
+::v-deep .filter-grid__range.el-date-editor {
+  width: 100%;
+  min-width: 0;
 }
 
-.label {
-  margin-right: 10px; /* 给文字和输入框之间添加一些间隔 */
+::v-deep .filter-grid__range.el-date-editor .el-range-input,
+::v-deep .filter-grid__range.el-date-editor .el-range-separator,
+::v-deep .filter-grid__range.el-date-editor .el-range__icon,
+::v-deep .filter-grid__range.el-date-editor .el-range__close-icon {
+  line-height: 32px;
+}
+
+.rpc-log-page__switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.rpc-log-page__pager {
+  gap: 6px;
+}
+
+.rpc-log-page__rid-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.rpc-log-page__caller-cell {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.rpc-log-page__view-link {
+  position: absolute;
+  right: 0;
+  bottom: -2px;
+}
+
+.rpc-log-page__detail-text {
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.rpc-log-page__drawer-log {
+  min-height: calc(100vh - 12px);
+  max-height: calc(100vh - 12px);
+  border-radius: 0;
 }
 
 </style>

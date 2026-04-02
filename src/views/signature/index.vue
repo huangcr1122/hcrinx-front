@@ -1,66 +1,106 @@
 <template>
-  <div style="margin-top: 3px">
-    <el-table v-loading="loading" :data="signData.filter(data =>  (!search || data.func.toLowerCase().includes(search.toLowerCase())))" border
-              size="mini" style="margin: 3px;" :header-cell-style="{'background-color': '#d3f9fa','color': '#000'}">
-      <el-table-column label="ID" prop="id" width="90"></el-table-column>
-      <el-table-column label="函数名" prop="func" width="280"></el-table-column>
-      <el-table-column label="私钥" width="200">********************************</el-table-column>
-      <el-table-column label="算法" :formatter="algorithmFormat" prop="algorithm" width="150">
-        <template v-slot:header>
-          <el-link :underline="false" @click="algorithmDescription">算法<i class="el-icon-info el-icon--right"></i></el-link>
-        </template>
-      </el-table-column>
-      <el-table-column :formatter="peroidFormat" label="签名有效期" prop="valid" width="100"></el-table-column>
-      <el-table-column label="创建人" prop="createby" width="120"></el-table-column>
-      <el-table-column label="创建时间" prop="createtime" width="160"></el-table-column>
-      <el-table-column label="说明" prop="description"></el-table-column>
-      <el-table-column label="操作">
-        <template slot="header" slot-scope="scope">
-          <el-input v-model="search" placeholder="输入关键字搜索" size="mini" style="width: 220px"/>
-          <el-button v-if="appInfo.role===1" type="warning" size="mini" style="margin-left: 11px" @click="signAddTab">
-            新增
-          </el-button>
-        </template>
-        <template slot-scope="scope">
-          <el-button style="margin-left: 11px" type="text" @click="generateSign(scope.row)">
-            <span style="color: green">生成一个<i class="el-icon-thumb el-icon--right"></i></span>
-          </el-button>
-          <el-popover placement="bottom" title="签名私钥" width="400" trigger="click" :content="scope.row.secretkey">
-            <el-button slot="reference" style="margin-left: 11px" v-if="appInfo.role===1" type="text">
-              <span style="color: green">查看私钥<i class="el-icon-view el-icon--right"></i></span>
-            </el-button>
-          </el-popover>
-          <el-button style="margin-left: 11px" v-if="appInfo.role===1" type="text" @click="showSignRule(scope.row)">
-            <span style="color: green">编辑<i class="el-icon-edit el-icon--right"></i></span>
-          </el-button>
-          <el-button style="margin-left: 11px" v-if="appInfo.role===1" type="text" @click="signRemove(scope.row)">
-            <span style="color: red">删除<i class="el-icon-delete el-icon--right"></i></span>
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <el-dialog :visible.sync="showCronDialog" :title="signatureAdd?'新增令牌':'编辑令牌'" width="60%">
-      <div v-if="signatureEdit" style="padding: 11px">令牌函数：<span style="padding: 11px">{{ signatureFunc }}</span></div>
-      <div v-if="signatureAdd" style="padding: 11px">令牌函数：
-        <el-select v-model="signatureChoose" placeholder="请选择" size="small" @change="signSelected">
-          <el-option v-for="item in signatureChooseOption" :key="item" :label="item" :value="item"></el-option>
-        </el-select>
+  <div class="signature-page page-shell">
+    <div class="page-header">
+      <div class="page-header__main">
+        <div class="page-header__title">签名令牌中心</div>
+        <div class="page-header__desc">统一维护接口签名令牌、算法和有效期，支持快速生成签名与查看私钥。</div>
       </div>
-      <div style="padding: 11px"> 签名私钥：
-        <el-input style="width: 600px" v-model="signSecretkey" size="small" placeholder="16进制字符串,长度32个字符"></el-input>
+    </div>
+    <div class="summary-grid">
+      <div v-for="item in summaryCards" :key="item.key" class="summary-item">
+        <div class="summary-item__label">{{ item.label }}</div>
+        <div class="summary-item__value">{{ item.value }}</div>
       </div>
-      <div style="padding: 11px"> 签名算法：
-        <el-input style="width: 600px" v-model="signAlgorithm" size="small" disabled></el-input>
+    </div>
+
+    <el-card shadow="never" class="panel-card signature-page__card">
+      <div class="page-toolbar">
+        <div class="page-toolbar__group page-toolbar__grow">
+          <el-input v-model="search" clearable size="small" class="signature-page__search" placeholder="搜索函数名 / 创建人 / 说明">
+            <i slot="prefix" class="el-input__icon el-icon-search"></i>
+          </el-input>
+          <el-radio-group v-model="algorithmFilter" size="small">
+            <el-radio-button label="all">全部算法</el-radio-button>
+            <el-radio-button label="1">MD5</el-radio-button>
+            <el-radio-button label="2">SHA-256</el-radio-button>
+          </el-radio-group>
+        </div>
+        <div class="page-toolbar__group">
+          <el-button size="small" icon="el-icon-info" @click="algorithmDescription">算法说明</el-button>
+          <el-button size="small" icon="el-icon-refresh-right" @click="getSignList">刷新</el-button>
+          <el-button v-if="appInfo.role===1" type="primary" size="small" icon="el-icon-plus" @click="signAddTab">新增令牌</el-button>
+        </div>
       </div>
-      <div style="padding: 11px"> 签名时效：
-        <el-input style="width: 600px" v-model="signValid" size="small"></el-input>
+
+
+      <div class="page-toolbar signature-page__meta-bar">
+        <span class="section-caption signature-page__meta-text">共 {{ signData.length }} 条令牌，当前展示 {{ filteredSignData.length }} 条</span>
+        <el-button v-if="search || algorithmFilter !== 'all'" type="text" @click="resetFilters">清空筛选</el-button>
       </div>
-      <div style="padding: 11px"> 其他说明：
-        <el-input style="width: 600px" v-model="signDescription" size="small"></el-input>
-      </div>
+
+      <el-table v-loading="loading" :data="filteredSignData" border stripe size="mini" row-key="id">
+        <el-table-column label="ID" prop="id" width="80"></el-table-column>
+        <el-table-column label="函数名" prop="func" min-width="280" show-overflow-tooltip></el-table-column>
+
+        <el-table-column label="私钥" width="180">
+          <template>
+            <span>********************************</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="算法" width="120">
+          <template slot-scope="scope">
+            <el-tag :type="scope.row.algorithm === 2 ? 'success' : 'warning'">{{ algorithmFormat(scope.row, null, scope.row.algorithm) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="签名有效期" width="160">
+          <template slot-scope="scope">{{ peroidFormat(scope.row, null, scope.row.valid) }}</template>
+        </el-table-column>
+        <el-table-column label="创建人" prop="createby" width="120"></el-table-column>
+        <el-table-column label="创建时间" prop="createtime" width="160"></el-table-column>
+        <el-table-column label="说明" prop="description" min-width="200" show-overflow-tooltip></el-table-column>
+        <el-table-column label="操作" width="260" fixed="right">
+          <template slot-scope="scope">
+            <div class="table-actions signature-page__table-actions">
+              <el-button type="text" @click="generateSign(scope.row)">生成签名</el-button>
+              <el-popover placement="bottom" title="签名私钥" width="420" trigger="click" :content="scope.row.secretkey">
+                <el-button slot="reference" type="text" v-if="appInfo.role===1">查看私钥</el-button>
+              </el-popover>
+              <el-button v-if="appInfo.role===1" type="text" @click="showSignRule(scope.row)">编辑</el-button>
+              <el-button v-if="appInfo.role===1" type="text" class="danger-btn" @click="signRemove(scope.row)">删除</el-button>
+            </div>
+          </template>
+        </el-table-column>
+
+      </el-table>
+    </el-card>
+
+    <el-dialog :visible.sync="showSignDialog" :title="signatureAdd ? '新增令牌' : '编辑令牌'" width="720px" :close-on-click-modal="false" destroy-on-close custom-class="compact-dialog">
+      <el-form label-width="100px" class="dialog-form--compact">
+
+        <el-form-item v-if="signatureEdit" label="令牌函数">
+          <span class="rule-id">{{ signatureFunc }}</span>
+        </el-form-item>
+        <el-form-item v-if="signatureAdd" label="令牌函数">
+          <el-select v-model="signatureChoose" placeholder="请选择" size="small" style="width: 100%" @change="signSelected">
+            <el-option v-for="item in signatureChooseOption" :key="item" :label="item" :value="item"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="签名私钥">
+          <el-input v-model.trim="signSecretkey" placeholder="16 进制字符串，长度 32 字符"></el-input>
+        </el-form-item>
+        <el-form-item label="签名算法">
+          <el-input v-model="signAlgorithm" disabled></el-input>
+        </el-form-item>
+        <el-form-item label="签名时效">
+          <el-input v-model="signValid" size="small"></el-input>
+        </el-form-item>
+        <el-form-item label="其他说明">
+          <el-input v-model="signDescription" maxlength="180" show-word-limit></el-input>
+        </el-form-item>
+      </el-form>
       <span slot="footer" class="dialog-footer">
-        <el-button @click="signatureAdd = false;signatureEdit = false">取 消</el-button>
-        <el-button type="primary" @click="signAddOrEdit">保 存</el-button>
+        <el-button @click="closeDialog">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="signAddOrEdit">保存</el-button>
       </span>
     </el-dialog>
   </div>
@@ -76,10 +116,12 @@ export default {
   data() {
     return {
       app: Cookies.get('app'),
-      appInfo: JSON.parse(localStorage.getItem("app")),
+      appInfo: JSON.parse(localStorage.getItem("app") || '{}'),
       loading: false,
+      submitLoading: false,
       signData: [],
       search: '',
+      algorithmFilter: 'all',
       signatureAdd: false,
       signatureEdit: false,
       signatureFunc: '',
@@ -91,14 +133,8 @@ export default {
       signDescription: '',
     };
   },
-  mounted() {
-    if (!this.app) {
-      this.$router.push({path: "/"});
-    }
-    this.getSignList();
-  },
   computed: {
-    showCronDialog: {
+    showSignDialog: {
       get() {
         return this.signatureAdd || this.signatureEdit;
       },
@@ -108,15 +144,55 @@ export default {
           this.signatureEdit = false;
         }
       }
+    },
+    filteredSignData() {
+      const keyword = this.search.trim().toLowerCase();
+      return this.signData.filter((row) => {
+        const source = [row.func, row.createby, row.description].join(' ').toLowerCase();
+        const matchesKeyword = !keyword || source.indexOf(keyword) !== -1;
+        const matchesAlgorithm = this.algorithmFilter === 'all' || String(row.algorithm) === this.algorithmFilter;
+        return matchesKeyword && matchesAlgorithm;
+      });
+    },
+    summaryCards() {
+      return [
+        {key: 'total', label: '令牌总数', value: this.signData.length},
+        {key: 'md5', label: 'MD5', value: this.signData.filter((item) => item.algorithm === 1).length},
+        {key: 'sha', label: 'SHA-256', value: this.signData.filter((item) => item.algorithm === 2).length},
+        {key: 'active', label: '当前展示', value: this.filteredSignData.length},
+      ];
+    },
+  },
+  mounted() {
+    if (!this.app) {
+      this.$router.push({path: "/"});
+      return;
     }
+    this.getSignList();
   },
   methods: {
-    algorithmFormat(row, column, value, index) {
+    resetFilters() {
+      this.search = '';
+      this.algorithmFilter = 'all';
+    },
+    closeDialog() {
+
+      this.signatureAdd = false;
+      this.signatureEdit = false;
+    },
+    resetDialog() {
+      this.signatureFunc = '';
+      this.signatureChoose = '';
+      this.signSecretkey = '';
+      this.signAlgorithm = '';
+      this.signValid = 5;
+      this.signDescription = '';
+    },
+    algorithmFormat(row, column, value) {
       return value === 1 ? 'MD5' : value === 2 ? 'SHA-256' : '未知';
     },
     algorithmDescription() {
-      this.$alert('<strong>1、MD5签名：有效期内可被重复使用</br></strong>生成方式：sign = MD5(key+unixtimestamp)+unixtimestamp' +
-          '</br><strong>2、SHA256签名:ts+nonce唯一</strong></br>生成方式：sign = SHA256(key+unixtimestamp+nonce)+unixtimestamp+nonce', '签名算法说明', {
+      this.$alert('<strong>1、MD5签名：有效期内可被重复使用</br></strong>生成方式：sign = MD5(key+unixtimestamp)+unixtimestamp' + '</br><strong>2、SHA256签名:ts+nonce唯一</strong></br>生成方式：sign = SHA256(key+unixtimestamp+nonce)+unixtimestamp+nonce', '签名算法说明', {
         dangerouslyUseHTMLString: true, closeOnClickModal: true,
       }).catch(() => {
       });
@@ -141,13 +217,14 @@ export default {
           id: target.id,
         },
       }).then((res) => {
-        this.loading = false;
         this.$alert(res.data, '签名有效期：' + target.valid + '秒', {
           confirmButtonText: '确定',
         });
+      }).finally(() => {
+        this.loading = false;
       });
     },
-    peroidFormat(row, column, value, index) {
+    peroidFormat(row, column, value) {
       let p = value;
       if (p < 60) {
         return p + '秒';
@@ -166,54 +243,50 @@ export default {
       }
     },
     signAddOrEdit() {
-      if (this.signatureFunc == null || this.signSecretkey == null || this.signSecretkey.length !== 32 || this.signValid == null || this.signDescription > 180) {
-        Message({message: "参数错误", type: "error", duration: 2 * 1000,});
+      const description = this.signDescription || '';
+      if (this.signSecretkey == null || this.signSecretkey.length !== 32 || this.signValid == null || description.length > 180) {
+        Message({message: "参数错误", type: "error", duration: 2 * 1000});
         return;
       }
       if (this.signValid < 3 || this.signValid > 180) {
-        Message({message: "签名时效再3秒~180秒之间", type: "error", duration: 2 * 1000,});
+        Message({message: "签名时效在 3 秒~180 秒之间", type: "error", duration: 2 * 1000});
         return;
       }
-      this.loading = true;
+      this.submitLoading = true;
       let params = {
         secretkey: this.signSecretkey,
         valid: this.signValid,
-        description: this.signDescription
-      }
-      if (this.signatureAdd) params.func = this.signatureChoose;
-      else {
+        description: description
+      };
+      if (this.signatureAdd) {
+        params.func = this.signatureChoose;
+      } else {
         params.id = this.signData.filter(x => x.func === this.signatureFunc)[0].id;
         params.func = this.signatureFunc;
       }
       let url = this.signatureAdd ? "/admin/sign/addSign" : "/admin/sign/updateSign";
       request({
         url: url, params: params,
-      }).then((res) => {
-        this.loading = false;
+      }).then(() => {
         this.$message.success('操作成功');
-        this.signatureAdd = false;
-        this.signatureEdit = false;
+        this.closeDialog();
         this.getSignList();
-      }).catch(() => {
-        this.$message.info('已取消');
+      }).finally(() => {
+        this.submitLoading = false;
       });
     },
     signAddTab() {
-      this.signatureFunc = '';
-      this.signatureChoose = '';
-      this.signSecretkey = '';
-      this.signAlgorithm = '';
-      this.signValid = 5;
-      this.signDescription = '';
+      this.resetDialog();
       request({
         url: "/admin/sign/signAddOption",
         params: {},
       }).then((res) => {
         this.signatureAdd = true;
-        this.signatureChooseOption = res.data;
+        this.signatureChooseOption = res.data || [];
       });
     },
     showSignRule(row) {
+      this.resetDialog();
       this.signatureFunc = row.func;
       this.signSecretkey = row.secretkey;
       this.signAlgorithm = row.algorithm === 1 ? 'MD5' : row.algorithm === 2 ? 'SHA-256' : '未知';
@@ -222,98 +295,71 @@ export default {
       this.signatureEdit = true;
     },
     getSignList() {
+      this.loading = true;
       request({
         url: "/admin/sign/getSignList",
         params: {},
       }).then((res) => {
-        this.signData = res.data;
+        this.signData = res.data || [];
+      }).finally(() => {
+        this.loading = false;
       });
     },
     signRemove(target) {
-      this.$confirm('删除私钥', '确认执行此操作?', {
+      this.$confirm('删除后不可恢复，是否继续？', '删除令牌', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         closeOnClickModal: false,
         closeOnPressEscape: false,
-        type: 'danger',
-        beforeClose: (action, instance, done) => {
-          if (action === 'confirm') {
-            instance.confirmButtonLoading = true;
-            instance.confirmButtonText = '删除中...';
-            this.loading = true;
-            request({
-              url: "/admin/sign/delSign",
-              params: {
-                id: target.id,
-                func: target.func,
-              },
-            }).then((res) => {
-              this.loading = false;
-              instance.confirmButtonLoading = false;
-              this.getSignList();
-              done();
-            });
-          } else {
-            done();
-          }
-        }
+        type: 'warning',
       }).then(() => {
-        this.$message.success('操作成功');
-      }).catch(() => {
-        this.$message.info('已取消');
+        this.loading = true;
+        return request({
+          url: "/admin/sign/delSign",
+          params: {
+            id: target.id,
+            func: target.func,
+          },
+        });
+      }).then(() => {
+        this.$message.success('删除成功');
+        this.getSignList();
+      }).catch((action) => {
+        if (action === 'cancel' || action === 'close') {
+          this.$message.info('已取消');
+        }
+      }).finally(() => {
+        this.loading = false;
       });
     },
   },
 };
 </script>
+
 <style lang="scss" scoped>
-.error-row {
-  color: #ff0000;
+.signature-page__search {
+  width: 360px;
+  max-width: 100%;
 }
 
-.warning-row {
-  color: #c3da04;
+.signature-page__meta-bar {
+  margin: 8px 0 14px;
 }
 
-.success-row {
-  color: #000000;
+.signature-page__meta-text {
+  margin-bottom: 0;
 }
 
-.cell {
-  white-space: pre-line !important;
+.signature-page__table-actions {
+  max-width: 220px;
 }
 
-.httptext {
-  display: -webkit-box;
-  overflow: hidden;
-  white-space: normal !important;
-  text-overflow: ellipsis;
-  word-wrap: break-word;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+::v-deep .signature-page__table-actions .el-popover__reference-wrapper {
+  display: inline-flex;
 }
 
-.infinite-list {
-  height: 600px;
-  padding: 10px;
-  margin: 0;
-  list-style: none;
-  border: 1px solid rgb(238, 238, 238);
-}
+.rule-id {
 
-:deep(.el-collapse-item__header) {
-  padding-left: 11px;
-  font-size: 16px;
-}
-
-.flex-prepend-input {
-  padding-top: 10px;
-}
-
-.flex-prepend-input ::v-deep .el-input-group__prepend {
-  align-items: center; /* 垂直居中 */
-  min-width: 110px; /* 设置最小宽度 */
-  color: black;
-}
-
-</style>
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px

@@ -24,19 +24,18 @@ export default {
       };
     },
   },
-  methods: {},
 };
 </script>
 
 <style lang="scss" scoped>
 .main-container {
-  background: #fff;
+  min-height: 100vh;
+  background: transparent;
 }
 
 .app-wrapper {
   position: relative;
-  // height: 100%;
-  height: calc(100vh - 56px);
+  min-height: 100vh;
   width: 100%;
 }
 

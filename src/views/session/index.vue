@@ -1,49 +1,76 @@
 <template>
-  <div style="padding: 0;background-color: #f1f1f1">
-    <el-container style="height: 93vh; border: 1px solid #eee">
-      <el-aside width="42vw">
-        <div class="HisTitle">会话ID</div>
-        <el-input v-model="prefix" class="input-with-select" clearable placeholder="前缀搜索" size="small" style="padding: 5px;" @clear="reset">
+  <div class="page-shell session-page">
+    <div class="page-header">
+      <div class="page-header__main">
+        <div class="page-header__title">会话管理</div>
+        <div class="page-header__desc">按前缀检索会话，查看 JSON 详情并在管理员权限下进行编辑或删除。</div>
+      </div>
+    </div>
+
+
+    <div class="split-panel">
+      <el-card shadow="never" class="panel-card">
+        <div class="page-toolbar">
+          <div>
+            <div class="panel-title">会话列表</div>
+            <div class="panel-subtitle">按前缀搜索会话 ID，共 {{ sessionList.length }} 条</div>
+          </div>
+          <div class="page-toolbar__group">
+            <el-button size="small" type="primary" icon="el-icon-refresh-right" @click="getSessionList0">刷新列表</el-button>
+          </div>
+        </div>
+
+        <el-input v-model="prefix" clearable placeholder="前缀搜索" size="small" @clear="reset">
           <el-button slot="append" icon="el-icon-search" @click="getSessionList0"></el-button>
         </el-input>
-        <el-collapse v-infinite-scroll="getSessionList" class="infinite-list" :infinite-scroll-disabled="disabled"
-                     style="overflow:auto;height: 84vh;padding-left: 5px" v-loading="loading" v-model="chooseSessionId" accordion @change="showSession">
-          <el-collapse-item v-for="(session, index) in sessionList" :key="session.key" :name="session.key"
-                            placement="top" size="large" style="width: 99%;padding-bottom: 1px;">
+        <el-collapse v-infinite-scroll="getSessionList" class="list-scroll list-scroll--compact" :infinite-scroll-disabled="disabled" v-loading="loading" v-model="chooseSessionId" accordion @change="showSession">
+
+          <el-collapse-item v-for="session in sessionList" :key="session.key" :name="session.key">
             <template slot="title">
-              <span style="color: #3a8515;white-space: nowrap;overflow: hidden;padding-left:5px;text-overflow: ellipsis;width:98%;">{{ session.key }} </span>
+              <span class="session-title">{{ session.key }}</span>
             </template>
-            <el-statistic class="ttl-statistic" :value="new Date(session.ttl)" format="HH:mm:ss" time-indices>
+            <el-statistic :value="new Date(session.ttl)" format="HH:mm:ss" time-indices>
               <template slot="prefix">有效期：</template>
             </el-statistic>
           </el-collapse-item>
         </el-collapse>
-      </el-aside>
-      <el-container style="flex: 1; ">
-        <el-main style="background:#e0e0e0;padding:5px; position: relative;">
-          <vue-json-editor style="height: 91vh" v-if="chooseSessionId!==''" v-model="jsonData" :showBtns="false" mode="code" lang="zh" :expanded-on-start="true"
-                           @json-change="onJsonChange" @has-error="onError"/>
-          <div v-if="chooseSessionId!==''&&appInfo.role===1" class="custom-toolbar-content">
-            <el-tag class="session-id-tag">{{ chooseSessionId }}</el-tag>
-            <el-popover width="160" v-model="visible"><p>确定删除吗？</p>
-              <div style="text-align: right; margin: 0">
+      </el-card>
+
+      <el-card shadow="never" class="panel-card detail-card">
+        <div class="page-toolbar">
+          <div>
+            <div class="panel-title">会话详情</div>
+            <div class="panel-subtitle detail-card__subtitle">{{ chooseSessionId || '请选择左侧会话记录' }}</div>
+
+          </div>
+          <div v-if="chooseSessionId!==''&&appInfo.role===1" class="page-toolbar__group page-toolbar__group--compact">
+            <el-popover width="160" v-model="visible">
+              <p>确定删除当前会话吗？</p>
+              <div class="compact-popover__actions">
                 <el-button size="mini" type="text" @click="visible = false">取消</el-button>
                 <el-button type="danger" size="mini" @click="delSession">确定</el-button>
               </div>
-              <el-button size="small" type="warning" slot="reference">删除</el-button>
+
+              <el-button slot="reference" size="small" type="warning">删除</el-button>
             </el-popover>
             <el-button size="small" type="success" @click="updateSession" :disabled="isChange">保存</el-button>
           </div>
-        </el-main>
-      </el-container>
-    </el-container>
+        </div>
+
+        <div v-if="chooseSessionId!==''" class="json-wrapper">
+          <vue-json-editor v-model="jsonData" class="json-shell json-shell--compact" :showBtns="false" mode="code" lang="zh" :expanded-on-start="true" @json-change="onJsonChange" @has-error="onError"/>
+
+        </div>
+        <el-empty v-else description="请选择左侧会话后查看详情"></el-empty>
+      </el-card>
+    </div>
   </div>
 </template>
 
 <script>
 import request from "@/utils/request";
 import Cookies from "js-cookie";
-import vueJsonEditor from 'vue-json-editor'
+import vueJsonEditor from 'vue-json-editor';
 
 export default {
   name: "Session",
@@ -51,7 +78,7 @@ export default {
   data() {
     return {
       app: Cookies.get('app'),
-      appInfo: JSON.parse(localStorage.getItem("app")),
+      appInfo: JSON.parse(localStorage.getItem("app") || '{}'),
       sessionList: [],
       prefix: '',
       cursor: '',
@@ -60,10 +87,6 @@ export default {
       disabled: false,
       chooseSession: {},
       jsonData: {},
-      dynamicStyle: {
-        height: 'auto', // 初始值或一个最小高度
-        minHeight: '200px' // 设置一个最小高度避免内容过少时太小
-      },
       visible: false,
       isChange: true,
       isErr: false,
@@ -72,12 +95,14 @@ export default {
   mounted() {
     if (!this.app) {
       this.$router.push({path: "/"});
+      return;
     }
+    this.getSessionList0();
   },
   methods: {
     updateSession() {
       if (this.isErr) {
-        this.$message.error("json格式错误")
+        this.$message.error("json格式错误");
         return;
       }
       request({
@@ -87,9 +112,10 @@ export default {
           json: JSON.stringify(this.jsonData),
           expire: Math.floor((this.chooseSession.ttl - Date.now()) / 1000)
         },
-      }).then((res) => {
-        this.chooseSession.value = JSON.stringify(this.jsonData)
+      }).then(() => {
+        this.chooseSession.value = JSON.stringify(this.jsonData);
         this.$message.success('操作成功');
+        this.isChange = true;
       });
     },
     delSession() {
@@ -100,25 +126,29 @@ export default {
           json: '{}',
           expire: -1
         },
-      }).then((res) => {
-        this.sessionList.splice(this.chooseSession, 1);
+      }).then(() => {
+        const index = this.sessionList.findIndex((item) => item.key === this.chooseSessionId);
+        if (index !== -1) {
+          this.sessionList.splice(index, 1);
+        }
         this.chooseSession = {};
         this.chooseSessionId = '';
+        this.jsonData = {};
+        this.visible = false;
+        this.$message.success('删除成功');
       });
     },
     onJsonChange(value) {
       this.isErr = false;
       this.isChange = this.chooseSession.value === JSON.stringify(value);
     },
-    onError(value) {
+    onError() {
       this.isErr = true;
-    },
-    showJson() {
-      console.log(this.jsonData);
     },
     reset() {
       this.sessionList = [];
-      this.cursor = null;
+      this.cursor = '';
+      this.disabled = false;
       this.getSessionList();
     },
     showSession() {
@@ -126,16 +156,15 @@ export default {
       if (this.chooseSessionId === '') {
         this.chooseSession = {};
         this.jsonData = {};
-        this.ttl = Date.now() + 24 * 3600 * 1000;
       } else {
-        this.chooseSession = this.sessionList.find(x => x.key === this.chooseSessionId);
-        this.jsonData = JSON.parse(this.chooseSession.value);
-        this.ttl = this.chooseSession.ttl;
+        this.chooseSession = this.sessionList.find(x => x.key === this.chooseSessionId) || {};
+        this.jsonData = this.chooseSession.value ? JSON.parse(this.chooseSession.value) : {};
       }
     },
     getSessionList0() {
       this.cursor = '';
       this.sessionList = [];
+      this.disabled = false;
       this.getSessionList();
     },
     getSessionList() {
@@ -147,14 +176,17 @@ export default {
           cursor: this.cursor
         },
       }).then((res) => {
-        this.loading = false;
-        res.data.map(x => {
-          let exist = this.sessionList.find(y=>y.key===x.key);
-          if(!exist)this.sessionList.push(x);
+        (res.data || []).forEach((x) => {
+          const exist = this.sessionList.find(y => y.key === x.key);
+          if (!exist) this.sessionList.push(x);
         });
-        if (res.data.length > 0) {
-          this.cursor = res.data[res.data.length - 1].key
+        if ((res.data || []).length > 0) {
+          this.cursor = res.data[res.data.length - 1].key;
+        } else {
+          this.disabled = true;
         }
+      }).finally(() => {
+        this.loading = false;
       });
     },
   },
@@ -162,106 +194,50 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-:deep(.el-timeline-item__timestamp) {
-  color: #000;
+.session-title {
+  color: #166534;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
-:deep(.el-collapse-item__content) {
-  padding-bottom: 0;
+.detail-card {
+  min-height: 560px;
 }
 
-:deep(.el-collapse-item__wrap) {
-  background-color: #ee000000;
+.detail-card__subtitle {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.HisTitle {
-  display: flex;
-  padding-top: 11px;
-  font-weight: bolder;
-  color: #40b3b3;
-  -webkit-box-pack: center;
-  -ms-flex-pack: center;
-  justify-content: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-  -ms-flex-direction: column;
-  -webkit-box-orient: vertical;
-  -webkit-box-direction: normal;
-  flex-direction: column;
-  text-align: center;
-  -webkit-box-sizing: border-box;
-  box-sizing: border-box;
+.json-wrapper {
+  margin-top: 12px;
 }
 
-:deep(.jsoneditor-poweredBy) {
+::v-deep .jsoneditor-poweredBy,
+
+::v-deep .jsoneditor-modes {
   display: none !important;
 }
 
-:deep(.jsoneditor-modes) {
-  display: none !important;
+::v-deep .jsoneditor-vue,
+::v-deep .jsoneditor-outer {
+  height: calc(100vh - 360px) !important;
 }
 
-:deep(.jsoneditor-vue) {
-  height: 100% !important;
-}
-
-:deep(.jsoneditor-outer) {
-  height: 100% !important;
-}
-
-/* 关键：使用深度选择器定位编辑器工具栏，并为其设置相对定位，作为自定义内容的定位基准 */
 ::v-deep .jsoneditor .jsoneditor-menu {
-  position: relative !important;
-  padding-right: 300px; /* 为右上角的内容预留出足够的空间，避免被默认按钮遮挡 */
-  min-height: 40px; /* 确保工具栏有足够的高度 */
-  display: flex;
-  align-items: center;
+  border-bottom: 1px solid #dbe4f0;
+  background: #eaf2ff;
 }
 
-/* 将自定义内容定位到工具栏内部右上角 */
-.custom-toolbar-content {
-  position: absolute;
-  top: 3%; /* 垂直居中 */
-  right: 10px; /* 距离右侧的间距 */
-  transform: translateY(-50%); /* 垂直居中修正 */
-  z-index: 1000; /* 确保显示在最上层 */
-  display: flex;
-  align-items: center;
-  gap: 10px; /* 元素之间的间距 */
+::v-deep .el-empty {
+  padding: 24px 0;
 }
 
-/* 自定义标签和统计信息的样式，确保与工具栏风格协调 */
-.custom-toolbar-content .session-id-tag {
-  margin: 0 0 0 11px;
-  font-size: 12px;
-}
-
-.custom-toolbar-content .ttl-statistic {
-  background: rgba(255, 255, 255, 0.25); /* 半透明白色背景，融入工具栏 */
-  padding: 2px 6px;
-  margin: 0 0 0 11px;
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 12px;
-  color: #fff; /* 文字颜色设置为白色，通常工具栏是深色 */
-}
-
-::v-deep .el-collapse-item__header {
-  height: 35px !important; /* 设置标题栏高度 */
-  line-height: 35px !important; /* 保持文字垂直居中 */
-}
-
-::v-deep .el-collapse-item__content {
-  padding: 10px; /* 调整内容区域内边距 */
-}
-
-::v-deep .el-collapse-item__wrap {
-  border: none; /* 可选：移除内容区域的边框 */
-}
-
-:deep(.el-collapse-item__header.is-active) {
-  background-color: #d5d5d5; /* 选中时的背景色 */
-  color: white; /* 选中时的文字颜色 */
+::v-deep .el-statistic__content {
+  font-size: 13px;
 }
 </style>

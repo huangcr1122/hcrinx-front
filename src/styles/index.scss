@@ -1,8 +1,21 @@
 @import './transition.scss';
 @import './element-ui.scss';
 
+html {
+  height: 100%;
+  box-sizing: border-box;
+  background: #f5f7fb;
+  scroll-behavior: smooth;
+}
+
 body {
-  height: calc(100vh - 56px);
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
+    radial-gradient(circle at left top, rgba(16, 185, 129, 0.08), transparent 24%),
+    #f5f7fb;
+  color: #1f2937;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -13,19 +26,24 @@ label {
   font-weight: 700;
 }
 
-html {
-  height: 100%;
-  box-sizing: border-box;
-}
-
 #app {
   height: 100vh;
+  min-height: 100vh;
 }
 
 *,
 *:before,
 *:after {
   box-sizing: inherit;
+}
+
+.el-button,
+.el-input__inner,
+.el-textarea__inner,
+.el-dialog,
+.el-card,
+.el-tag {
+  transition: all 0.2s ease;
 }
 
 a:focus,
@@ -50,13 +68,12 @@ div:focus {
     visibility: hidden;
     display: block;
     font-size: 0;
-    content: " ";
+    content: ' ';
     clear: both;
     height: 0;
   }
 }
 
-// main-container global css
 .app-container {
   padding: 1px;
 }
@@ -64,4 +81,3 @@ div:focus {
 .cell {
   white-space: pre-wrap !important;
 }
-
