@@ -23,18 +23,10 @@ router.beforeEach(async (to, from, next) => {
   if (hasToken) {
     if (to.path === "/login") {
       // if is logged in, redirect to the home page
-      next({path: "/"});
+      next({path: "/", replace: true});
       NProgress.done();
     } else {
-      try {
-        next();
-      } catch (error) {
-        // remove token and go to login page to re-login
-        await store.dispatch("user/resetToken");
-        Message.error(error || "Has Error");
-        next(`/login?redirect=${to.path}`);
-        NProgress.done();
-      }
+      next();
     }
   } else {
     /* has no token*/

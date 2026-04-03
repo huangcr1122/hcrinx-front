@@ -30,8 +30,7 @@ service.interceptors.response.use(
       Message.error(res.msg || "Error");
       if (res.code === -999) {
         store.dispatch("user/resetToken").then(() => {
-          router.push({path: "/"});
-          location.reload();
+          router.push(`/login?redirect=${router.currentRoute.path}`);
         });
       }
       return Promise.reject(new Error(res.msg || "Error"));
@@ -43,8 +42,7 @@ service.interceptors.response.use(
     Message.error(error.message);
     if (error.response.status === 401) {
       store.dispatch("user/resetToken").then(() => {
-        router.push({path: "/"});
-        location.reload();
+        router.push(`/login?redirect=${router.currentRoute.path}`);
       });
     }
     return Promise.reject(error);

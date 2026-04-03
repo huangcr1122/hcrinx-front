@@ -1,37 +1,12 @@
 <template>
   <div class="page-shell rpc-log-page">
-    <div class="page-header">
-      <div class="page-header__main">
-        <div class="page-header__title">调用日志总览</div>
-        <div class="page-header__desc">
-          聚合 HTTP、RPC 与定时作业调用记录，支持按链路、耗时、返回结果与日志量进行精细筛查。
-        </div>
-      </div>
-      <div class="page-header__meta">
-        <el-tag size="small">应用：{{ app }}</el-tag>
-        <el-tag size="small" :type="queryError ? 'danger' : 'success'">{{ queryError ? '仅异常' : '全部结果' }}</el-tag>
-      </div>
-    </div>
-
-
-    <el-card class="panel-card">
-      <div class="panel-header">
-        <div class="panel-header__main">
-          <div class="panel-title">筛选条件</div>
-          <div class="panel-subtitle">建议先按时间范围、模块函数和异常状态缩小结果集，再查看详细请求与返回内容。</div>
-        </div>
-        <div class="panel-header__actions">
-          <el-button size="small" @click="resetFilters">清空筛选</el-button>
-          <el-button size="small" type="primary" icon="el-icon-search" @click="getLogTable">查询</el-button>
-          <el-button size="small" type="success" icon="el-icon-data-analysis" @click="getLogTableCount">统计总数</el-button>
-        </div>
-
-      </div>
-      <div class="filter-grid filter-grid--dense">
+    <el-card class="panel-card rpc-log-page__filter-card">
+      <div class="filter-grid filter-grid--dense rpc-log-page__filter-grid">
         <el-input v-model="rid" clearable placeholder="RID" size="small" />
         <el-date-picker
           v-model="period"
-          class="filter-grid__range"
+          class="filter-grid__range rpc-log-page__range"
+
           :default-time="['08:00:00', '15:00:00']"
           :picker-options="pickerOptions"
           align="right"
@@ -111,33 +86,31 @@
           size="small"
           @input="maxrpclog = maxrpclog.replace(/[^\d]/g, '')"
         />
-      </div>
-      <div class="rpc-log-page__switches">
         <el-checkbox v-model="noCache" border size="small">隐藏缓存</el-checkbox>
         <el-checkbox v-model="queryError" border size="small">只看异常</el-checkbox>
-      </div>
-    </el-card>
-
-    <el-card class="panel-card">
-      <div class="panel-header">
-        <div class="panel-header__main">
-          <div class="panel-title">日志列表</div>
-          <div class="panel-subtitle">共展示 {{ tableData.length }} 条记录，支持查看调用链、缓存内容与函数日志。</div>
-        </div>
-        <div class="panel-header__actions rpc-log-page__pager">
+        <el-button size="small" type="primary" icon="el-icon-search" @click="getLogTable">查询</el-button>
+        <div class="rpc-log-page__action-group">
+          <el-button size="small" type="success" icon="el-icon-data-analysis" @click="getLogTableCount">统计总数</el-button>
           <el-button size="small" type="primary" plain :disabled="page === 1" icon="el-icon-arrow-left" @click="getLogTablePre">上一页</el-button>
           <el-tag type="info">第 {{ page }} 页</el-tag>
           <el-button size="small" type="primary" plain :disabled="tableData.length !== 20" @click="getLogTableNext">下一页<i class="el-icon-arrow-right el-icon--right"></i></el-button>
         </div>
+
+
       </div>
-      <el-table
-        :cell-class-name="tableRowClassName"
-        :data="tableData"
-        v-loading="loading"
-        border
-        size="mini"
-        height="calc(100vh - 360px)"
-      >
+    </el-card>
+
+    <el-card class="panel-card rpc-log-page__table-card">
+      <div class="rpc-log-page__table-shell">
+        <el-table
+          :cell-class-name="tableRowClassName"
+          :data="tableData"
+          v-loading="loading"
+          border
+          size="mini"
+          height="100%"
+        >
+
 
         <el-table-column label="RID" prop="rid" width="126">
           <template slot-scope="scope">
@@ -264,8 +237,10 @@
             </el-link>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
     </el-card>
+
 
     <el-dialog :visible.sync="traceTableVisible" title="调用链" width="99%" custom-class="compact-dialog">
 
@@ -298,8 +273,8 @@
 
     <el-drawer :with-header="false" :visible.sync="showLog" direction="ltr" size="74%">
 
-      <div class="log-stream rpc-log-page__drawer-log" v-infinite-scroll="load">
-        <div v-if="rpcLog.length === 0" class="muted-text">暂无日志，请继续滚动或稍后重试。</div>
+      <div class="log-stream rpc-log-page__drawer-log" v-infinite-scroll="load" :infinite-scroll-disabled="rpcLogLoading || rpcLogFinished || !showLog">
+        <div v-if="rpcLog.length === 0 && !rpcLogLoading" class="muted-text">暂无日志，请继续滚动或稍后重试。</div>
         <div v-for="(item, index) in rpcLog" :key="index + '' + item.ts" class="log-stream__item" :style="{ color: levelColor[item.level] }">
           <span class="log-stream__meta">{{ item.ts }}</span>
           {{ '【' + logLevel[item.level] + '】' + item.clazz + '【' + item.method + ':' + item.line + '】 ' + item.content }}
@@ -357,6 +332,8 @@ export default {
       noCache: false,
       rpcLog: [],
       rpcMsg: '',
+      rpcLogLoading: false,
+      rpcLogFinished: false,
       pickerOptions: {
         shortcuts: [{
           text: '今天',
@@ -511,9 +488,10 @@ export default {
       this.getLogTable();
     },
     load() {
-      if (!this.rpcLogRid) {
+      if (!this.rpcLogRid || this.rpcLogLoading || this.rpcLogFinished) {
         return;
       }
+      this.rpcLogLoading = true;
       request({
         url: "/admin/rpclog/getRpcLog",
         params: {
@@ -521,10 +499,15 @@ export default {
           rid: this.rpcLogRid
         }
       }).then((res) => {
-        if (res.data.length !== 0) {
-          this.rpcLogPage++;
-          res.data.map(x => this.rpcLog.push(x));
+        const list = res.data || [];
+        if (list.length === 0) {
+          this.rpcLogFinished = true;
+          return;
         }
+        this.rpcLogPage++;
+        list.forEach(x => this.rpcLog.push(x));
+      }).finally(() => {
+        this.rpcLogLoading = false;
       });
     },
     showRpcMsg(item) {
@@ -535,6 +518,8 @@ export default {
       this.rpcLog = [];
       this.rpcLogPage = 1;
       this.rpcLogRid = item.rid;
+      this.rpcLogLoading = false;
+      this.rpcLogFinished = false;
       this.showLog = true;
       this.load();
     },
@@ -844,6 +829,43 @@ export default {
   -webkit-box-orient: vertical;
 }
 
+.rpc-log-page {
+  height: calc(100vh - 66px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rpc-log-page__filter-card {
+  flex: 0 0 auto;
+}
+
+.rpc-log-page__table-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+
+.rpc-log-page__filter-grid {
+  gap: 4px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+
+.rpc-log-page__range {
+  grid-column: span 3;
+  min-width: 380px;
+}
+
+
+.rpc-log-page__table-shell {
+  height: 100%;
+  min-height: 0;
+}
+
+
 .rpc-log-page__summary-grid {
   margin-top: 14px;
 }
@@ -852,20 +874,104 @@ export default {
   font-size: 16px;
 }
 
+::v-deep .rpc-log-page__filter-card .el-card__body {
+  padding: 8px 10px;
+}
 
-::v-deep .filter-grid__range.el-date-editor {
+::v-deep .rpc-log-page__table-card .el-card__body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+}
+
+::v-deep .rpc-log-page__filter-grid .el-input__inner,
+::v-deep .rpc-log-page__filter-grid .el-range-editor.el-input__inner,
+::v-deep .rpc-log-page__filter-grid .el-cascader .el-input__inner,
+::v-deep .rpc-log-page__filter-grid .el-select .el-input__inner {
+  height: 28px;
+  font-size: 12px;
+  line-height: 28px;
+}
+
+::v-deep .rpc-log-page__filter-grid .el-input__icon,
+::v-deep .rpc-log-page__filter-grid .el-input__suffix,
+::v-deep .rpc-log-page__filter-grid .el-input__prefix,
+::v-deep .rpc-log-page__filter-grid .el-range__icon,
+::v-deep .rpc-log-page__filter-grid .el-range__close-icon {
+  line-height: 28px;
+}
+
+::v-deep .rpc-log-page__filter-grid .el-cascader,
+::v-deep .rpc-log-page__filter-grid .el-select,
+::v-deep .rpc-log-page__filter-grid .el-date-editor {
+  width: 100%;
+}
+
+::v-deep .rpc-log-page__filter-grid .el-button {
+  min-height: 28px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+::v-deep .rpc-log-page__filter-grid .el-button [class*="el-icon-"] {
+  font-size: 12px;
+}
+
+::v-deep .rpc-log-page__filter-grid .el-checkbox.is-bordered {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  margin-left: 0;
+  padding: 0 8px 0 6px;
+  font-size: 12px;
+  line-height: 26px;
+}
+
+::v-deep .rpc-log-page__filter-grid .el-checkbox.is-bordered .el-checkbox__label {
+  padding-left: 4px;
+}
+
+::v-deep .rpc-log-page__filter-grid .el-tag {
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 22px;
+}
+
+.rpc-log-page__action-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  grid-column: -5 / -1;
+  justify-self: end;
+  width: max-content;
+  max-width: 100%;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+
+
+::v-deep .rpc-log-page__range.el-date-editor {
+
   width: 100%;
   min-width: 0;
 }
 
-::v-deep .filter-grid__range.el-date-editor .el-range-input,
-::v-deep .filter-grid__range.el-date-editor .el-range-separator,
-::v-deep .filter-grid__range.el-date-editor .el-range__icon,
-::v-deep .filter-grid__range.el-date-editor .el-range__close-icon {
-  line-height: 32px;
+::v-deep .rpc-log-page__range.el-date-editor .el-range-input,
+::v-deep .rpc-log-page__range.el-date-editor .el-range-separator,
+::v-deep .rpc-log-page__range.el-date-editor .el-range__icon,
+::v-deep .rpc-log-page__range.el-date-editor .el-range__close-icon {
+  line-height: 28px;
 }
 
+
+
 .rpc-log-page__switches {
+
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -906,4 +1012,36 @@ export default {
   border-radius: 0;
 }
 
+@media (max-width: 1200px) {
+  .rpc-log-page__range {
+    grid-column: span 2;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 992px) {
+  .rpc-log-page {
+    height: auto;
+    min-height: auto;
+  }
+
+  .rpc-log-page__table-card {
+    min-height: calc(100vh - 240px);
+  }
+
+  .rpc-log-page__range {
+    grid-column: span 1;
+  }
+
+  .rpc-log-page__action-group {
+    grid-column: span 1;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+}
+
+
+
+
 </style>
+

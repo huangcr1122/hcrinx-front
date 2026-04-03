@@ -20,8 +20,8 @@ export default {
 <style lang="scss" scoped>
 .app-main {
   min-height: calc(100vh - 56px);
-  width: 100%;
-  padding: 16px 18px 20px;
+  width: 100%;  
+  padding: 5px;
   top: 56px;
   position: relative;
   overflow-x: hidden;

@@ -1,37 +1,5 @@
 <template>
   <div class="page-shell api-market">
-    <div class="page-header">
-      <div class="page-header__main">
-        <div class="page-header__title">API 市场</div>
-        <div class="page-header__desc">
-          统一浏览当前应用接口目录、签名要求与出入参说明，并支持按勾选结果批量导出文档。
-        </div>
-      </div>
-      <div class="page-header__meta">
-        <el-tag size="small">应用：{{ app }}</el-tag>
-        <el-tag size="small" :type="currentPermissionType">{{ currentPermissionLabel }}</el-tag>
-      </div>
-    </div>
-    <div class="summary-grid api-market__summary-grid">
-
-        <div class="summary-item">
-          <div class="summary-item__label">模块数</div>
-          <div class="summary-item__value">{{ data.length }}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-item__label">接口总数</div>
-          <div class="summary-item__value">{{ leafCount }}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-item__label">已选接口</div>
-          <div class="summary-item__value">{{ selectedCount }}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-item__label">当前接口</div>
-          <div class="summary-item__value api-market__summary-name">{{ funcdoc.name || '未选择' }}</div>
-        </div>
-      </div>
-
     <div class="split-panel api-market__layout">
 
       <el-card class="panel-card api-market__tree-panel">
@@ -77,97 +45,156 @@
       </el-card>
 
       <el-card class="panel-card api-market__doc-panel" v-loading="loading">
-        <template v-if="funcdoc.name">
-          <div class="panel-header">
-            <div class="panel-header__main">
-              <div class="panel-title">{{ funcdoc.name }}</div>
-              <div class="panel-subtitle">{{ funcdoc.description || '暂无接口说明。' }}</div>
+        <div class="api-market__doc-scroll">
+          <template v-if="funcdoc.name">
+            <div class="panel-header">
+              <div class="panel-header__main">
+                <div class="panel-title">{{ funcdoc.name }}</div>
+                <div class="panel-subtitle">{{ funcdoc.description || '暂无接口说明。' }}</div>
+              </div>
+<!--              <div class="panel-header__actions">-->
+<!--                <el-button size="small" type="primary" icon="el-icon-position" @click="testDialogVisible = true">在线测试</el-button>-->
+<!--              </div>-->
             </div>
-            <div class="panel-header__actions">
-              <el-tag>{{ funcdoc.serviceName || funcdoc.service || '未分类模块' }}</el-tag>
-              <el-tag :type="currentPermissionType">{{ currentPermissionLabel }}</el-tag>
-            </div>
-          </div>
 
-          <div class="info-grid api-market__info-grid">
-            <div class="info-item">
-              <div class="info-item__label">应用标识</div>
-              <div class="info-item__value mono-text">{{ funcdoc.app }}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-item__label">函数标识</div>
-              <div class="info-item__value mono-text">{{ funcdoc.func }}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-item__label">模块标识</div>
-              <div class="info-item__value">{{ funcdoc.service }}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-item__label">模块名称</div>
-              <div class="info-item__value">{{ funcdoc.serviceName }}</div>
-            </div>
-          </div>
 
-          <div class="section-block">
-            <div class="panel-title api-market__section-title">请求地址</div>
-            <div class="api-market__url-card">
-              <div><span class="muted-text">Local：</span><el-link :href="apiUrl()" :underline="false" type="primary">{{ apiUrl() }}</el-link></div>
-              <div><span class="muted-text">Network：</span><el-link :href="apiUrl2()" :underline="false" type="primary">{{ apiUrl2() }}</el-link></div>
+            <div class="info-grid api-market__info-grid">
+              <div class="info-item">
+                <div class="info-item__label">应用标识</div>
+                <div class="info-item__value mono-text">{{ funcdoc.app }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-item__label">函数标识</div>
+                <div class="info-item__value mono-text">{{ funcdoc.func }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-item__label">模块标识</div>
+                <div class="info-item__value">{{ funcdoc.service }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-item__label">模块名称</div>
+                <div class="info-item__value">{{ funcdoc.serviceName }}</div>
+              </div>
             </div>
-          </div>
 
-          <div v-if="funcdoc.sign === 1 || funcdoc.sign === 2" class="section-block">
-            <div class="panel-title api-market__section-title">签名方式</div>
-            <div class="api-market__sign-card mono-text">
-              <span v-if="funcdoc.sign === 1">sign = MD5($TOKEN$ + unixtimestamp) + unixtimestamp</span>
-              <span v-else>sign = SHA256($TOKEN$ + unixtimestamp + nonce) + unixtimestamp + nonce</span>
+            <div class="section-block">
+              <div class="panel-title api-market__section-title">请求地址</div>
+              <div class="api-market__url-card">
+                <div><span class="muted-text">Local：</span><el-link :href="apiUrl()" :underline="false" type="primary">{{ apiUrl() }}</el-link></div>
+                <div><span class="muted-text">Network：</span><el-link :href="apiUrl2()" :underline="false" type="primary">{{ apiUrl2() }}</el-link></div>
+              </div>
             </div>
-          </div>
 
-          <div class="section-block">
-            <div class="panel-title api-market__section-title">请求参数</div>
-            <el-table
-              :data="requestParams"
-              :tree-props="{ children: 'children' }"
-              border
-              class="api-market__table"
-              row-key="id"
-              size="mini"
-              stripe
-            >
-              <el-table-column :formatter="nameFormatter" label="字段" prop="name" min-width="180" show-overflow-tooltip />
-              <el-table-column :formatter="useFormatter" label="传参方式" min-width="138" show-overflow-tooltip />
-              <el-table-column :formatter="typeFormatter" label="类型" prop="type" width="128" show-overflow-tooltip />
-              <el-table-column label="示例" prop="example" min-width="160" show-overflow-tooltip />
-              <el-table-column label="描述" prop="desc" min-width="180" show-overflow-tooltip />
-            </el-table>
-          </div>
+            <div v-if="funcdoc.sign === 1 || funcdoc.sign === 2" class="section-block">
+              <div class="panel-title api-market__section-title">签名方式</div>
+              <div class="api-market__sign-card mono-text">
+                <span v-if="funcdoc.sign === 1">sign = MD5($TOKEN$ + unixtimestamp) + unixtimestamp</span>
+                <span v-else>sign = SHA256($TOKEN$ + unixtimestamp + nonce) + unixtimestamp + nonce</span>
+              </div>
+            </div>
 
-          <div class="section-block">
-            <div class="panel-title api-market__section-title">返回参数</div>
-            <el-table
-              :data="responseParams"
-              :tree-props="{ children: 'children' }"
-              border
-              class="api-market__table"
-              default-expand-all
-              row-key="id"
-              size="mini"
-              stripe
-            >
-              <el-table-column label="字段" prop="name" min-width="180" show-overflow-tooltip />
-              <el-table-column :formatter="typeFormatter" label="类型" prop="type" width="128" show-overflow-tooltip />
-              <el-table-column label="示例" prop="example" min-width="160" show-overflow-tooltip />
-              <el-table-column label="描述" prop="desc" min-width="180" show-overflow-tooltip />
-            </el-table>
-          </div>
+            <div class="section-block">
+              <div class="panel-title api-market__section-title">请求参数</div>
+              <el-table
+                :data="requestParams"
+                :tree-props="{ children: 'children' }"
+                border
+                class="api-market__table"
+                row-key="id"
+                size="mini"
+                stripe
+              >
+                <el-table-column :formatter="nameFormatter" label="字段" prop="name" min-width="180" show-overflow-tooltip />
+                <el-table-column :formatter="useFormatter" label="传参方式" min-width="138" show-overflow-tooltip />
+                <el-table-column :formatter="typeFormatter" label="类型" prop="type" width="128" show-overflow-tooltip />
+                <el-table-column label="示例" prop="example" min-width="160" show-overflow-tooltip />
+                <el-table-column label="描述" prop="desc" min-width="180" show-overflow-tooltip />
+              </el-table>
+            </div>
 
-        </template>
-        <el-empty v-else description="请选择左侧接口查看文档详情" />
+            <div class="section-block">
+              <div class="panel-title api-market__section-title">返回参数</div>
+              <el-table
+                :data="responseParams"
+                :tree-props="{ children: 'children' }"
+                border
+                class="api-market__table"
+                default-expand-all
+                row-key="id"
+                size="mini"
+                stripe
+              >
+                <el-table-column label="字段" prop="name" min-width="180" show-overflow-tooltip />
+                <el-table-column :formatter="typeFormatter" label="类型" prop="type" width="128" show-overflow-tooltip />
+                <el-table-column label="示例" prop="example" min-width="160" show-overflow-tooltip />
+                <el-table-column label="描述" prop="desc" min-width="180" show-overflow-tooltip />
+              </el-table>
+            </div>
+
+
+          </template>
+          <el-empty v-else description="请选择左侧接口查看文档详情" />
+        </div>
       </el-card>
+
     </div>
+
+    <el-dialog :visible.sync="testDialogVisible" title="在线测试" width="920px" append-to-body custom-class="api-test-dialog">
+      <div v-if="funcdoc.name" class="api-test-panel api-test-dialog__body">
+        <div class="api-test-panel__config">
+          <div class="api-test-panel__row">
+            <span class="api-test-panel__label">请求地址：</span>
+            <el-input v-model="testUrl" readonly size="small" class="api-test-panel__url-input">
+              <template slot="prepend">
+                <el-tag size="small" type="success">POST</el-tag>
+              </template>
+            </el-input>
+          </div>
+
+          <div v-if="funcdoc.sign === 1 || funcdoc.sign === 2" class="api-test-panel__row">
+            <span class="api-test-panel__label">签名Token：</span>
+            <el-input v-model="testToken" placeholder="请输入签名Token" size="small" show-password></el-input>
+          </div>
+
+          <div class="api-test-panel__row api-test-panel__row--textarea">
+            <span class="api-test-panel__label">请求参数：</span>
+            <div class="api-test-panel__editor">
+              <el-input
+                v-model="testRequestBody"
+                type="textarea"
+                :rows="8"
+                placeholder="请输入JSON格式的请求参数"
+                size="small"
+                class="api-test-panel__textarea"
+              />
+              <div class="api-test-panel__helper-actions">
+                <el-button size="small" icon="el-icon-magic-stick" @click="generateExampleParams">生成示例</el-button>
+              </div>
+            </div>
+          </div>
+
+          <div class="api-test-panel__actions">
+            <el-button type="primary" icon="el-icon-position" :loading="testLoading" @click="sendTestRequest">发送请求</el-button>
+            <el-button icon="el-icon-refresh" @click="clearTestPanel">清空</el-button>
+          </div>
+        </div>
+
+        <div v-if="testResponse" class="api-test-panel__response">
+          <div class="api-test-panel__response-header">
+            <span class="api-test-panel__label">响应结果：</span>
+            <el-tag :type="testResponseStatus === 200 ? 'success' : 'danger'" size="small">
+              {{ testResponseStatus }}
+            </el-tag>
+            <span class="api-test-panel__time">耗时：{{ testResponseTime }}ms</span>
+          </div>
+          <pre class="api-test-panel__response-body">{{ testResponse }}</pre>
+        </div>
+      </div>
+      <el-empty v-else description="请先选择接口后再进行在线测试" />
+    </el-dialog>
   </div>
 </template>
+
 
 <script>
 import request from "@/utils/request";
@@ -182,6 +209,10 @@ export default {
       filterText: "",
       selectAll: false,
       selectedApis: [],
+      favorites: JSON.parse(localStorage.getItem('api_favorites_' + Cookies.get('app')) || '[]'),
+      history: JSON.parse(localStorage.getItem('api_history_' + Cookies.get('app')) || '[]'),
+      favoritesVisible: false,
+      historyVisible: false,
       defaultProps: {
         children: "funcList",
         label: "name"
@@ -191,6 +222,15 @@ export default {
       loading: false,
       requestParams: [],
       responseParams: [],
+      testDialogVisible: false,
+      testUrl: '',
+
+      testToken: '',
+      testRequestBody: '',
+      testResponse: '',
+      testResponseStatus: 0,
+      testResponseTime: 0,
+      testLoading: false,
       typeReferrer: {
         byte: "int8",
         "java.lang.Byte": "int8",
@@ -220,6 +260,20 @@ export default {
     leafCount() {
       return this.getAllLeafNodes(this.data).length;
     },
+    totalApiCount() {
+      return this.leafCount;
+    },
+    openApiCount() {
+      const leafNodes = this.getAllLeafNodes(this.data);
+      return leafNodes.filter(node => node.sign === 0).length;
+    },
+    signApiCount() {
+      const leafNodes = this.getAllLeafNodes(this.data);
+      return leafNodes.filter(node => node.sign === 1 || node.sign === 2).length;
+    },
+    isFavorite() {
+      return this.funcdoc.func && this.favorites.some(fav => fav.func === this.funcdoc.func);
+    },
     currentPermissionLabel() {
       if (this.funcdoc.sign === 1) return 'MD5签名';
       if (this.funcdoc.sign === 2) return 'SHA256签名';
@@ -238,6 +292,10 @@ export default {
       return;
     }
     this.getApiList();
+    window.addEventListener('select-api', this.handleSelectApi);
+  },
+  beforeDestroy() {
+    window.removeEventListener('select-api', this.handleSelectApi);
   },
   watch: {
     filterText(val) {
@@ -247,6 +305,118 @@ export default {
     }
   },
   methods: {
+    showFavorites() {
+      if (this.favorites.length === 0) {
+        this.$message.info('暂无收藏的接口');
+        return;
+      }
+      this.$alert(
+        `<div style="max-height: 400px; overflow-y: auto;">
+          ${this.favorites.map(fav => `
+            <div style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;"
+                 onclick="window.dispatchEvent(new CustomEvent('select-api', { detail: '${fav.func}' }));">
+              <div style="font-weight: bold;">${fav.name}</div>
+              <div style="font-size: 12px; color: #666;">${fav.func}</div>
+            </div>
+          `).join('')}
+        </div>`,
+        '我的收藏',
+        {
+          dangerouslyUseHTMLString: true,
+          confirmButtonText: '关闭'
+        }
+      );
+    },
+    showHistory() {
+      if (this.history.length === 0) {
+        this.$message.info('暂无浏览历史');
+        return;
+      }
+      this.$alert(
+        `<div style="max-height: 400px; overflow-y: auto;">
+          ${this.history.slice(0, 20).map(item => `
+            <div style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;"
+                 onclick="window.dispatchEvent(new CustomEvent('select-api', { detail: '${item.func}' }));">
+              <div style="font-weight: bold;">${item.name}</div>
+              <div style="font-size: 12px; color: #666;">${item.func} - ${item.time}</div>
+            </div>
+          `).join('')}
+        </div>`,
+        '浏览历史',
+        {
+          dangerouslyUseHTMLString: true,
+          confirmButtonText: '清空历史',
+          callback: action => {
+            if (action === 'confirm') {
+              this.clearHistory();
+            }
+          }
+        }
+      );
+    },
+    clearHistory() {
+      this.history = [];
+      localStorage.setItem('api_history_' + this.app, '[]');
+      this.$message.success('历史已清空');
+    },
+    toggleFavorite() {
+      if (!this.funcdoc.func) return;
+      const index = this.favorites.findIndex(fav => fav.func === this.funcdoc.func);
+      if (index > -1) {
+        this.favorites.splice(index, 1);
+        this.$message.success('已取消收藏');
+      } else {
+        this.favorites.unshift({
+          func: this.funcdoc.func,
+          name: this.funcdoc.name,
+          time: new Date().format('yyyy-MM-dd hh:mm:ss')
+        });
+        this.$message.success('收藏成功');
+      }
+      localStorage.setItem('api_favorites_' + this.app, JSON.stringify(this.favorites));
+    },
+    addToHistory(apiData) {
+      const index = this.history.findIndex(item => item.func === apiData.func);
+      if (index > -1) {
+        this.history.splice(index, 1);
+      }
+      this.history.unshift({
+        func: apiData.func,
+        name: apiData.name,
+        time: new Date().format('yyyy-MM-dd hh:mm:ss')
+      });
+      if (this.history.length > 50) {
+        this.history = this.history.slice(0, 50);
+      }
+      localStorage.setItem('api_history_' + this.app, JSON.stringify(this.history));
+    },
+    copyApiUrl() {
+      const url = this.apiUrl();
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => {
+          this.$message.success('接口地址已复制');
+        }).catch(() => {
+          this.fallbackCopy(url);
+        });
+      } else {
+        this.fallbackCopy(url);
+      }
+    },
+    fallbackCopy(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        this.$message.success('接口地址已复制');
+      } catch (e) {
+        this.$message.error('复制失败');
+      }
+      document.body.removeChild(textarea);
+    },
     handleSelectAll(checked) {
       const leafNodes = this.getAllLeafNodes(this.data);
       if (checked) {
@@ -277,6 +447,18 @@ export default {
     apiClick(nodeData) {
       if (nodeData.func !== undefined) {
         this.getApiDoc(nodeData.func);
+        this.addToHistory(nodeData);
+      }
+    },
+    handleSelectApi(event) {
+      const func = event.detail;
+      if (func) {
+        this.getApiDoc(func);
+        const leafNodes = this.getAllLeafNodes(this.data);
+        const nodeData = leafNodes.find(node => node.func === func);
+        if (nodeData) {
+          this.addToHistory(nodeData);
+        }
       }
     },
     filterNode(value, data) {
@@ -370,7 +552,142 @@ export default {
         console.error(e);
       }).finally(() => {
         this.loading = false;
+        this.testUrl = this.apiUrl();
       });
+    },
+    generateExampleParams() {
+      if (!this.requestParams || this.requestParams.length === 0) {
+        this.$message.warning('该接口无请求参数');
+        return;
+      }
+      const example = {};
+      this.requestParams.forEach(param => {
+        if (param.name && !param.name.startsWith('$')) {
+          const fieldName = param.name;
+          const exampleValue = param.example;
+          if (exampleValue !== null && exampleValue !== undefined) {
+            example[fieldName] = exampleValue;
+          } else {
+            example[fieldName] = this.getDefaultValueByType(param.type);
+          }
+        }
+      });
+      this.testRequestBody = JSON.stringify(example, null, 2);
+      this.$message.success('已生成示例参数');
+    },
+    getDefaultValueByType(type) {
+      if (!type) return '';
+      if (type.includes('int') || type.includes('long') || type.includes('short') || type.includes('byte')) {
+        return 0;
+      }
+      if (type.includes('float') || type.includes('double')) {
+        return 0.0;
+      }
+      if (type.includes('boolean')) {
+        return false;
+      }
+      if (type.includes('[]') || type.includes('List') || type.includes('Array')) {
+        return [];
+      }
+      return '';
+    },
+    async sendTestRequest() {
+      if (!this.testUrl) {
+        this.$message.error('请先选择接口');
+        return;
+      }
+      let requestBody = {};
+      if (this.testRequestBody.trim()) {
+        try {
+          requestBody = JSON.parse(this.testRequestBody);
+        } catch (e) {
+          this.$message.error('请求参数JSON格式错误');
+          return;
+        }
+      }
+      this.testLoading = true;
+      const startTime = Date.now();
+      try {
+        const headers = {
+          'Content-Type': 'application/json'
+        };
+        if (this.funcdoc.sign === 1 || this.funcdoc.sign === 2) {
+          if (!this.testToken) {
+            this.$message.error('请输入签名Token');
+            this.testLoading = false;
+            return;
+          }
+          const timestamp = Math.floor(Date.now() / 1000);
+          let sign = '';
+          if (this.funcdoc.sign === 1) {
+            sign = await this.md5(this.testToken + timestamp) + timestamp;
+          } else {
+            const nonce = Math.random().toString(36).substring(2, 15);
+            sign = await this.sha256(this.testToken + timestamp + nonce) + timestamp + nonce;
+          }
+          headers['sign'] = sign;
+        }
+        const response = await fetch(this.testUrl, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(requestBody)
+        });
+        const endTime = Date.now();
+        this.testResponseTime = endTime - startTime;
+        this.testResponseStatus = response.status;
+        const responseText = await response.text();
+        try {
+          const responseJson = JSON.parse(responseText);
+          this.testResponse = JSON.stringify(responseJson, null, 2);
+        } catch (e) {
+          this.testResponse = responseText;
+        }
+        this.$message.success('请求成功');
+      } catch (error) {
+        const endTime = Date.now();
+        this.testResponseTime = endTime - startTime;
+        this.testResponseStatus = 0;
+        this.testResponse = `请求失败：${error.message}`;
+        this.$message.error('请求失败');
+      } finally {
+        this.testLoading = false;
+      }
+    },
+    async md5(text) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text);
+      const hashBuffer = await crypto.subtle.digest('MD5', data).catch(() => {
+        return this.simpleMd5(text);
+      });
+      if (typeof hashBuffer === 'string') {
+        return hashBuffer;
+      }
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+    simpleMd5(text) {
+      let hash = 0;
+      for (let i = 0; i < text.length; i++) {
+        const char = text.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return Math.abs(hash).toString(16).padStart(32, '0').substring(0, 32);
+    },
+    async sha256(text) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+    clearTestPanel() {
+      this.testRequestBody = '';
+      this.testResponse = '';
+      this.testResponseStatus = 0;
+      this.testResponseTime = 0;
+      this.testToken = '';
+      this.$message.success('已清空测试面板');
     },
     addTreeLevel(data, level = 0) {
       return data.map(node => {
@@ -773,6 +1090,153 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.api-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.api-stats__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 24px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+  flex: 1;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.api-stats__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.api-stats__value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.api-stats__item--total {
+  background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+  .api-stats__value { color: #0284c7; }
+}
+
+.api-stats__item--open {
+  background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+  .api-stats__value { color: #16a34a; }
+}
+
+.api-stats__item--sign {
+  background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+  .api-stats__value { color: #d97706; }
+}
+
+.api-stats__item--selected {
+  background: linear-gradient(135deg, #ede9fe 0%, #faf5ff 100%);
+  .api-stats__value { color: #7c3aed; }
+}
+
+.api-test-panel__config {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.api-test-panel__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.api-test-panel__label {
+  flex-shrink: 0;
+  min-width: 100px;
+  font-weight: 600;
+  color: #64748b;
+  font-size: 14px;
+  padding-top: 6px;
+}
+
+.api-test-panel__url-input {
+  flex: 1;
+}
+
+.api-test-panel__editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.api-test-panel__textarea {
+  width: 100%;
+  font-family: 'Courier New', monospace;
+}
+
+.api-test-panel__helper-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.api-test-panel__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-left: 112px;
+}
+
+.api-test-panel__response {
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+}
+
+.api-test-panel__response-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.api-test-panel__time {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.api-test-panel__response-body {
+  margin: 0;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.api-test-dialog__body {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+</style>
+
+<style lang="scss" scoped>
 .api-market__summary-grid {
   margin-top: 14px;
 }
@@ -782,25 +1246,57 @@ export default {
   line-height: 1.35;
 }
 
+.api-market {
+  height: calc(100vh - 66px);
+  overflow: hidden;
+}
+
 .api-market__layout {
-  align-items: start;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(280px, 25%) minmax(0, 1fr);
+  align-items: stretch;
+  overflow: hidden;
 }
 
 .api-market__tree-panel,
 .api-market__doc-panel {
-  min-height: calc(100vh - 220px);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.api-market__tree-panel ::v-deep .el-card__body,
+.api-market__doc-panel ::v-deep .el-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .api-market__tree-toolbar {
   margin-bottom: 10px;
+  flex: 0 0 auto;
 }
 
 .api-market__tree-shell {
-  min-height: calc(100vh - 330px);
-  max-height: calc(100vh - 330px);
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.api-market__doc-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
 }
 
 .api-market__tree-node {
+
   min-width: 0;
   font-size: 12px;
   line-height: 1.4;
@@ -847,5 +1343,36 @@ export default {
 .api-market__sign-card ::v-deep .el-link {
   color: #93c5fd;
 }
+
+@media (max-width: 992px) {
+  .api-market {
+    height: auto;
+    overflow: visible;
+  }
+
+  .api-market__layout {
+    height: auto;
+    overflow: visible;
+  }
+
+  .api-market__tree-panel,
+  .api-market__doc-panel {
+    height: auto;
+    min-height: calc(100vh - 220px);
+  }
+
+  .api-market__tree-shell {
+    min-height: calc(100vh - 330px);
+    max-height: calc(100vh - 330px);
+  }
+
+  .api-market__doc-scroll {
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+}
 </style>
+
 

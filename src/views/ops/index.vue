@@ -1,20 +1,5 @@
 <template>
   <div class="page-shell ops-page">
-    <div class="page-header">
-      <div class="page-header__main">
-        <div class="page-header__title">版本编译与部署</div>
-        <div class="page-header__desc">
-          统一查看 Git 提交、构建产物、部署记录与实时日志，形成完整的发布流水线视图。
-        </div>
-      </div>
-      <div class="page-header__meta">
-        <el-tag size="small">应用：{{ app }}</el-tag>
-        <el-tag size="small" :type="gitShow ? 'success' : 'warning'">{{ gitShow ? 'Git 构建' : '发布包构建' }}</el-tag>
-        <el-tag size="small">分支：{{ branch || '-' }}</el-tag>
-      </div>
-    </div>
-
-
     <div :class="['ops-page__grid', { 'ops-page__grid--three': !gitShow }]">
       <el-card v-if="gitShow" class="panel-card ops-page__panel">
         <div class="panel-header">
@@ -515,10 +500,16 @@ export default {
   margin-top: 14px;
 }
 
+.ops-page {
+  min-height: calc(100vh - 66px);
+}
+
 .ops-page__grid {
   display: grid;
   grid-template-columns: minmax(240px, 19%) minmax(240px, 19%) minmax(240px, 19%) minmax(0, 1fr);
-  gap: 12px;
+  gap: 5px;
+  min-height: calc(100vh - 66px);
+  align-items: stretch;
 }
 
 .ops-page__grid--three {
@@ -526,12 +517,24 @@ export default {
 }
 
 .ops-page__panel {
-  min-height: calc(100vh - 220px);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 66px);
+  min-height: 0;
+}
+
+.ops-page__panel ::v-deep .el-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 .ops-page__panel--log {
   min-width: 0;
 }
+
 
 .ops-page__commit-pill {
   max-width: 280px;
@@ -554,6 +557,9 @@ export default {
 
 .ops-page__list-shell {
   margin-top: 10px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 .ops-page__collapse-title {
@@ -610,8 +616,9 @@ export default {
 }
 
 .ops-page__log-shell {
-  min-height: calc(100vh - 280px);
-  max-height: calc(100vh - 280px);
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   padding: 8px 10px;
 }
 
@@ -621,6 +628,7 @@ export default {
   gap: 6px;
   padding-bottom: 3px;
 }
+
 
 .ops-page__log-meta {
   flex: 0 0 auto;
@@ -637,9 +645,29 @@ export default {
 }
 
 @media (max-width: 1680px) {
+  .ops-page,
+  .ops-page__grid {
+    min-height: auto;
+  }
+
   .ops-page__grid,
   .ops-page__grid--three {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-page__panel {
+    height: auto;
+    min-height: calc(100vh - 220px);
+  }
+
+  .ops-page__list-shell {
+    min-height: 380px;
+    max-height: calc(100vh - 300px);
+  }
+
+  .ops-page__log-shell {
+    min-height: calc(100vh - 280px);
+    max-height: calc(100vh - 280px);
   }
 }
 
@@ -654,5 +682,6 @@ export default {
     white-space: normal;
   }
 }
+
 </style>
 

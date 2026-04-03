@@ -1,42 +1,27 @@
 <template>
   <div class="page-shell cron-page">
-    <div class="page-header">
-      <div class="page-header__main">
-        <div class="page-header__title">定时作业管理</div>
-        <div class="page-header__desc">
-          查看当前应用作业状态、执行窗口与历史结果，支持手动触发、启停与规则维护。
-        </div>
-      </div>
-      <div class="page-header__meta">
-        <el-tag size="small">应用：{{ app }}</el-tag>
-        <el-tag size="small" :type="appInfo.role === 1 ? 'danger' : appInfo.role === 2 ? 'success' : 'info'">{{ roleLabel }}</el-tag>
+    <div class="page-toolbar cron-page__toolbar">
+      <div class="page-toolbar__group cron-page__toolbar-group">
+        <el-input v-model="search" clearable placeholder="搜索函数名或任务名称" size="small" class="cron-page__search" />
+        <el-select v-model="statusFilter" clearable placeholder="状态筛选" size="small" class="cron-page__status-filter">
+          <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-button size="small" @click="clearFilters">清空</el-button>
+        <el-button size="small" type="primary" icon="el-icon-refresh" @click="refreshTasks">刷新列表</el-button>
+        <el-button v-if="canManage" size="small" type="primary" plain icon="el-icon-plus" @click="cronAddTab">新增作业</el-button>
       </div>
     </div>
-      <div class="page-toolbar">
-        <div class="page-toolbar__group page-toolbar__grow">
-          <el-input v-model="search" clearable placeholder="搜索函数名或任务名称" size="small" class="cron-page__search" />
-          <el-select v-model="statusFilter" clearable placeholder="状态筛选" size="small">
-            <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </div>
-        <div class="page-toolbar__group">
-          <el-button size="small" @click="clearFilters">清空</el-button>
-          <el-button size="small" type="primary" icon="el-icon-refresh" @click="refreshTasks">刷新列表</el-button>
-        </div>
-      </div>
 
-    <el-card class="panel-card">
+    <el-card class="panel-card cron-page__list-card">
       <div class="panel-header">
         <div class="panel-header__main">
           <div class="panel-title">作业列表</div>
           <div class="panel-subtitle">当前符合筛选条件 {{ filteredTaskData.length }} 个作业。</div>
         </div>
-        <div v-if="canManage" class="panel-header__actions">
-          <el-button size="small" type="primary" icon="el-icon-plus" @click="cronAddTab">新增作业</el-button>
-        </div>
       </div>
 
-      <el-table v-loading="loading" :data="filteredTaskData" border size="mini">
+      <el-table v-loading="loading" :data="filteredTaskData" border size="mini" class="cron-page__table" height="100%">
+
         <el-table-column label="函数名" prop="func" min-width="260" show-overflow-tooltip />
         <el-table-column label="任务名称" prop="name" min-width="220" show-overflow-tooltip />
         <el-table-column label="执行周期" prop="period" width="160">
@@ -689,15 +674,71 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.cron-page {
+  position: relative;
+  height: calc(100vh - 66px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cron-page__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+
+.cron-page__toolbar-group {
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+
 .cron-page__summary-grid {
   margin-top: 14px;
 }
 
 .cron-page__search {
-  min-width: 220px;
+  width: 280px;
+  min-width: 280px;
+}
+
+.cron-page__status-filter {
+  width: 140px;
+  min-width: 140px;
+}
+
+.cron-page__list-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+::v-deep .cron-page__list-card .el-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cron-page__table {
+  flex: 1;
+  min-height: 0;
 }
 
 .cron-page__table-actions {
+
   max-width: 250px;
 }
 
@@ -765,4 +806,16 @@ export default {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 992px) {
+  .cron-page {
+    height: auto;
+    min-height: auto;
+  }
+
+  .cron-page__list-card {
+    min-height: calc(100vh - 220px);
+  }
+}
+
 </style>

@@ -1,39 +1,5 @@
 <template>
   <div class="page-shell app-dashboard" v-loading="loading">
-    <div class="page-header">
-      <div class="page-header__main">
-        <div class="page-header__title">{{ appInfo.name || app }} 应用概览</div>
-        <div class="page-header__desc">
-          聚合当前应用的基础信息、运行负载、权限与主机配置，便于在一个页面内完成巡检和管理。
-        </div>
-      </div>
-      <div class="page-header__meta">
-        <el-tag size="small">应用：{{ app }}</el-tag>
-        <el-tag size="small" :type="appInfo.role === 1 ? 'danger' : appInfo.role === 2 ? 'success' : 'info'">
-          {{ roleLabel }}
-        </el-tag>
-      </div>
-    </div>
-    <div class="summary-grid app-dashboard__hero-grid">
-
-        <div class="summary-item">
-          <div class="summary-item__label">应用简称</div>
-          <div class="summary-item__value">{{ app }}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-item__label">我的权限</div>
-          <div class="summary-item__value">{{ roleLabel }}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-item__label">在线主机</div>
-          <div class="summary-item__value">{{ validHostCount }}/{{ app_hosts.length }}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-item__label">最近数据刷新</div>
-          <div class="summary-item__value app-dashboard__summary-time">{{ dashboardUpdateTime }}</div>
-        </div>
-      </div>
-
     <el-card class="panel-card">
       <div class="panel-header">
         <div class="panel-header__main">

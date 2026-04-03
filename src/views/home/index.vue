@@ -3,7 +3,6 @@
     <div class="page-header">
       <div class="page-header__main">
         <div class="page-header__title">应用工作台</div>
-        <div class="page-header__desc">按角色快速进入当前可访问应用，统一查看管理、协作与访客权限下的应用入口。</div>
       </div>
       <div class="page-header__actions">
         <span class="page-header__hint">{{ heroHint }}</span>
@@ -12,16 +11,22 @@
     </div>
     <div class="summary-grid dashboard-summary">
 
-        <div v-for="item in summaryCards" :key="item.label" class="summary-item">
+        <div
+          v-for="(item, index) in summaryCards"
+          :key="item.label"
+          :class="['summary-item', { 'summary-item--clickable': item.action }]"
+          @click="item.action && item.action()"
+        >
           <div class="summary-item__label">{{ item.label }}</div>
           <div class="summary-item__value">{{ item.value }}</div>
           <div class="summary-item__meta">{{ item.meta }}</div>
+          <i v-if="item.action" class="el-icon-arrow-right summary-item__arrow"></i>
         </div>
       </div>
 
     <el-card shadow="never" class="panel-card">
 
-      <div v-for="section in roleSections" :key="section.key" class="section-block">
+      <div v-for="section in roleSections" :key="section.key" :ref="section.key" class="section-block">
         <div class="panel-header dashboard-page__section-header">
           <div class="panel-header__main">
             <div class="panel-title">{{ section.title }}</div>
@@ -81,9 +86,24 @@ export default {
     summaryCards() {
       return [
         {label: '全部应用', value: this.totalApps, meta: '按当前账号权限自动汇总'},
-        {label: '管理员', value: this.appList1.length, meta: '可执行配置、发布与告警管理'},
-        {label: '开发者', value: this.appList2.length, meta: '可查看调用、日志与作业信息'},
-        {label: '访客', value: this.appList3.length, meta: '仅浏览基础信息与监控数据'},
+        {
+          label: '管理员',
+          value: this.appList1.length,
+          meta: '可执行配置、发布与告警管理',
+          action: () => this.scrollToSection('admin')
+        },
+        {
+          label: '开发者',
+          value: this.appList2.length,
+          meta: '可查看调用、日志与作业信息',
+          action: () => this.scrollToSection('developer')
+        },
+        {
+          label: '访客',
+          value: this.appList3.length,
+          meta: '仅浏览基础信息与监控数据',
+          action: () => this.scrollToSection('guest')
+        },
       ];
     },
     roleSections() {
@@ -124,6 +144,22 @@ export default {
       Cookies.set('app', app.app);
       localStorage.setItem("app", JSON.stringify(app));
       this.$router.push({path: '/app'});
+    },
+    scrollToSection(sectionKey) {
+      const elements = this.$refs[sectionKey];
+      if (elements && elements.length > 0) {
+        const element = elements[0];
+        element.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+
+        // 添加高亮效果
+        element.classList.add('section-block--highlight');
+        setTimeout(() => {
+          element.classList.remove('section-block--highlight');
+        }, 2000);
+      }
     },
     formatDate(value) {
       const date = value instanceof Date ? value : new Date(value);
@@ -240,6 +276,74 @@ export default {
 
   .app-entry__meta {
     white-space: normal;
+  }
+}
+
+// 摘要卡片点击样式
+.summary-item--clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+    .summary-item__arrow {
+      transform: translateX(4px);
+    }
+  }
+}
+
+.summary-item__arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: #909399;
+  transition: transform 0.2s ease;
+}
+
+// 区块高亮效果
+.section-block {
+  position: relative;
+  transition: all 0.3s ease;
+
+  &--highlight {
+    animation: highlight-pulse 2s ease;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      right: -4px;
+      bottom: -4px;
+      border: 2px solid #409eff;
+      border-radius: 8px;
+      animation: highlight-border 2s ease;
+    }
+  }
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(64, 158, 255, 0.05);
+  }
+}
+
+@keyframes highlight-border {
+  0%, 100% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 </style>

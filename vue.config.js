@@ -18,13 +18,10 @@ module.exports = {
       errors: true,
     },
     proxy: {
-      '/admin': {
+      '/': {
         target: 'http://10.118.26.59:1215/',//填写后台接口地址
         // target: 'http://10.115.45.137:1215/',//填写后台接口地址
         changeOrigin: true,//设置允许跨域
-        pathRewrite: {
-          '^/admin': '/admin'
-        }
       }
     }
   },
