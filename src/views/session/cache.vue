@@ -29,9 +29,6 @@
             <template slot="title">
               <span class="session-title">{{ session.key }}</span>
             </template>
-            <el-statistic :value="new Date(session.ttl)" format="HH:mm:ss" time-indices>
-              <template slot="prefix">有效期：</template>
-            </el-statistic>
           </el-collapse-item>
         </el-collapse>
       </el-card>
@@ -41,7 +38,6 @@
           <div>
             <div class="panel-title">缓存详情</div>
             <div class="panel-subtitle detail-card__subtitle">{{ chooseSessionId || '请选择左侧缓存记录' }}</div>
-
           </div>
           <div v-if="chooseSessionId!==''&&appInfo.role===1" class="page-toolbar__group page-toolbar__group--compact">
             <el-popover width="160" v-model="visible">
@@ -55,6 +51,11 @@
             </el-popover>
             <el-button size="small" type="success" @click="updateSession" :disabled="isChange">保存</el-button>
           </div>
+        </div>
+        <div v-if="chooseSession!=='' && chooseSession.ttl" class="detail-card__ttl">
+          <el-statistic :value="new Date(chooseSession.ttl)" format="HH:mm:ss" time-indices>
+            <template slot="prefix">缓存有效期：</template>
+          </el-statistic>
         </div>
 
         <div v-if="chooseSessionId!==''" class="json-wrapper">
@@ -200,6 +201,81 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
+  transition: color 0.2s ease, font-weight 0.2s ease;
+}
+
+.list-scroll {
+  ::v-deep .el-collapse-item {
+    border-radius: 8px;
+    margin-bottom: 4px;
+    overflow: hidden;
+    border: none;
+
+    &__header {
+      height: auto;
+      line-height: normal;
+      padding: 10px 12px;
+      background: transparent;
+      font-size: 13px;
+      border-radius: 8px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+
+      &:hover {
+        background: #f0fdf4;
+      }
+
+      &.is-active {
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+        
+        .session-title {
+          color: #047857;
+          font-weight: 600;
+        }
+        
+        &::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 3px;
+          height: 60%;
+          background: linear-gradient(180deg, #10b981, #059669);
+          border-radius: 0 3px 3px 0;
+        }
+
+        .el-collapse-item__arrow {
+          color: #059669;
+        }
+      }
+
+      &:not(.is-active):hover {
+        .el-collapse-item__arrow {
+          opacity: 0.6;
+        }
+      }
+    }
+
+    &__arrow {
+      transition: all 0.25s ease;
+      color: #9ca3af;
+      font-size: 12px;
+      margin-left: 4px;
+    }
+
+    &__wrap {
+      border: none;
+    }
+
+    &__content {
+      padding: 8px 16px 14px 20px;
+      background: #fafbfc;
+      font-size: 12px;
+      color: #64748b;
+    }
+  }
 }
 
 .detail-card {
@@ -211,6 +287,20 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.detail-card__ttl {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  padding: 8px 16px;
+  background: #f0f9ff;
+  border-radius: 8px;
+  border: 1px solid #e0f2fe;
+}
+
+.detail-card__ttl ::v-deep .el-statistic__content {
+  font-size: 14px;
 }
 
 .json-wrapper {

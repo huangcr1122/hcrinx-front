@@ -68,9 +68,17 @@
           <div class="panel-title">应用负载趋势</div>
           <div class="panel-subtitle">对比今天、昨日与一周前同时间段的请求量变化。</div>
         </div>
+        <el-select v-model="chartGranularity" size="small" style="width: 120px;" @change="onGranularityChange">
+          <el-option label="1分钟" value="1"></el-option>
+          <el-option label="5分钟" value="5"></el-option>
+          <el-option label="15分钟" value="15"></el-option>
+          <el-option label="30分钟" value="30"></el-option>
+          <el-option label="1小时" value="60"></el-option>
+        </el-select>
       </div>
       <div ref="main0" class="app-dashboard__chart app-dashboard__chart--large"></div>
     </el-card>
+
 
     <el-card class="panel-card">
       <div class="panel-header">
@@ -116,6 +124,141 @@
         <div ref="main2" class="app-dashboard__chart"></div>
       </div>
     </el-card>
+    <el-card class="panel-card">
+      <div class="panel-header">
+        <div class="panel-header__main">
+          <div class="panel-title">流量结构总览</div>
+          <div class="panel-subtitle">基于今日实时流量与近 14 天历史聚合，快速看清调用结构和稳定性变化。</div>
+        </div>
+      </div>
+      <div class="app-dashboard__overview-grid">
+        <div class="app-dashboard__overview-panel app-dashboard__overview-panel--summary">
+          <div class="app-dashboard__overview-metrics">
+            <div v-for="item in flowOverviewMetrics" :key="item.label" class="app-dashboard__mini-stat">
+              <div class="app-dashboard__mini-stat-label">{{ item.label }}</div>
+              <div class="app-dashboard__mini-stat-value">{{ item.value }}</div>
+              <div class="app-dashboard__mini-stat-tip">{{ item.tip }}</div>
+            </div>
+          </div>
+          <div ref="overviewMixChart" class="app-dashboard__chart app-dashboard__chart--medium"></div>
+        </div>
+        <div ref="overviewTrendChart" class="app-dashboard__chart app-dashboard__chart--medium"></div>
+      </div>
+    </el-card>
+
+    <div class="app-dashboard__insight-grid">
+      <el-card class="panel-card">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">热门模块 / 函数</div>
+            <div class="panel-subtitle">汇总 HTTP、RPC、定时任务与异常热点，快速定位业务焦点。</div>
+          </div>
+        </div>
+        <div class="app-dashboard__dual-chart">
+          <div>
+            <div class="section-caption">调用 Top 8</div>
+            <div ref="overviewRankChart" class="app-dashboard__chart app-dashboard__chart--small"></div>
+          </div>
+          <div>
+            <div class="section-caption">风险 Top 8</div>
+            <div ref="overviewRiskChart" class="app-dashboard__chart app-dashboard__chart--small"></div>
+          </div>
+        </div>
+      </el-card>
+
+      <el-card class="panel-card">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">主机健康概览</div>
+            <div class="panel-subtitle">复用部署主机数据，补充健康状态、环境分布与待处理问题。</div>
+          </div>
+        </div>
+        <div class="app-dashboard__overview-metrics app-dashboard__overview-metrics--compact">
+          <div v-for="item in hostOverviewMetrics" :key="item.label" class="app-dashboard__mini-stat">
+            <div class="app-dashboard__mini-stat-label">{{ item.label }}</div>
+            <div class="app-dashboard__mini-stat-value">{{ item.value }}</div>
+            <div class="app-dashboard__mini-stat-tip">{{ item.tip }}</div>
+          </div>
+        </div>
+        <div class="app-dashboard__host-overview">
+          <div ref="hostEnvChart" class="app-dashboard__chart app-dashboard__chart--small"></div>
+          <div class="app-dashboard__mini-list">
+            <div class="section-caption">待关注主机</div>
+            <div v-if="invalidHosts.length === 0" class="muted-text">暂无异常主机</div>
+            <div v-for="item in invalidHosts" :key="item.id" class="app-dashboard__mini-list-item">
+              <div class="app-dashboard__mini-list-main">{{ item.ip }}:{{ item.port }}</div>
+              <el-tag size="mini" :type="hostValidType(item.valid)">{{ hostValidText(item.valid) }}</el-tag>
+            </div>
+          </div>
+        </div>
+      </el-card>
+
+      <el-card class="panel-card">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">API 资产概览</div>
+            <div class="panel-subtitle">统计接口总量、签名覆盖率与模块分布，辅助接口治理和开放评估。</div>
+          </div>
+        </div>
+        <div class="app-dashboard__overview-metrics app-dashboard__overview-metrics--compact">
+          <div v-for="item in apiOverviewMetrics" :key="item.label" class="app-dashboard__mini-stat">
+            <div class="app-dashboard__mini-stat-label">{{ item.label }}</div>
+            <div class="app-dashboard__mini-stat-value">{{ item.value }}</div>
+            <div class="app-dashboard__mini-stat-tip">{{ item.tip }}</div>
+          </div>
+        </div>
+        <div class="app-dashboard__api-overview">
+          <div ref="apiAssetChart" class="app-dashboard__chart app-dashboard__chart--small"></div>
+          <div class="app-dashboard__mini-list">
+            <div class="section-caption">模块 Top 6</div>
+            <div v-if="apiModuleRank.length === 0" class="muted-text">暂无接口资产数据</div>
+            <div v-for="item in apiModuleRank.slice(0, 6)" :key="item.service" class="app-dashboard__mini-list-item">
+              <div class="app-dashboard__mini-list-main">{{ item.label }}</div>
+              <div class="app-dashboard__mini-list-value">{{ item.value }} 个</div>
+            </div>
+          </div>
+        </div>
+      </el-card>
+
+      <el-card class="panel-card">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">发布稳定性</div>
+            <div class="panel-subtitle">读取最近构建与部署历史，观察交付成功率、耗时和最新发布时间。</div>
+          </div>
+          <div class="panel-header__actions muted-text">{{ releaseModeText }}</div>
+        </div>
+        <div v-loading="releaseLoading">
+          <div class="app-dashboard__overview-metrics app-dashboard__overview-metrics--compact">
+            <div v-for="item in releaseOverviewMetrics" :key="item.label" class="app-dashboard__mini-stat">
+              <div class="app-dashboard__mini-stat-label">{{ item.label }}</div>
+              <div class="app-dashboard__mini-stat-value">{{ item.value }}</div>
+              <div class="app-dashboard__mini-stat-tip">{{ item.tip }}</div>
+            </div>
+          </div>
+          <div class="app-dashboard__release-grid">
+            <div class="app-dashboard__mini-list">
+              <div class="section-caption">最近构建</div>
+              <div v-if="recentBuildList.length === 0" class="muted-text">暂无构建历史</div>
+              <div v-for="item in recentBuildList" :key="item.id" class="app-dashboard__mini-list-item app-dashboard__mini-list-item--stack">
+                <div class="app-dashboard__mini-list-main">#{{ item.id }}</div>
+                <div class="app-dashboard__mini-list-meta">{{ formatDateTime(item.start) }}</div>
+                <div class="app-dashboard__mini-list-value">{{ formatBuildStatus(item) }} · {{ formatDuration(item.start, item.end) }}</div>
+              </div>
+            </div>
+            <div class="app-dashboard__mini-list">
+              <div class="section-caption">最近部署</div>
+              <div v-if="recentDeployList.length === 0" class="muted-text">暂无部署历史</div>
+              <div v-for="item in recentDeployList" :key="item.id" class="app-dashboard__mini-list-item app-dashboard__mini-list-item--stack">
+                <div class="app-dashboard__mini-list-main">#{{ item.id }}</div>
+                <div class="app-dashboard__mini-list-meta">{{ formatDateTime(item.start) }}</div>
+                <div class="app-dashboard__mini-list-value">{{ formatBuildStatus(item) }} · {{ formatDuration(item.start, item.end) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-card>
+    </div>
 
     <el-dialog :visible.sync="dialogTableVisible" title="应用信息" width="720px" custom-class="compact-dialog">
 
@@ -323,6 +466,8 @@ export default {
       dashboardUpdateTime: new Date().format("yyyy-MM-dd hh:mm:ss"),
       yesterdayQpm: [],
       lastweekQpm: [],
+      chartGranularity: '5',
+      currentDayQpm: [],
       loadTreeTitle: ['HTTP调用', 'RPC调用', '定时作业', '执行异常', 'ERR日志'],
       chooseNum: 0,
       loadTree: [],
@@ -334,7 +479,25 @@ export default {
       hostUsername: '',
       hostPassword: '',
       hostEnv: '',
-      hostDeploy: ''
+      hostDeploy: '',
+      overviewStats: [],
+      loadInsight: {
+        normal: [],
+        risk: []
+      },
+      apiAsset: {
+        total: 0,
+        open: 0,
+        sign: 0,
+        md5: 0,
+        sha256: 0
+      },
+      apiModules: [],
+      releaseLoading: false,
+      releaseMode: 'git',
+      releaseBuilds: [],
+      releaseDeploys: []
+
     }
   },
   computed: {
@@ -366,13 +529,89 @@ export default {
         { label: 'P95 时延', value: this.formatLatency(this.dashboard.p95), className: 'metric-card--warning', tip: '95% 请求耗时不超过该值' },
         { label: 'P99 时延', value: this.formatLatency(this.dashboard.p99), className: 'metric-card--danger', tip: '关注长尾请求耗时' }
       ];
+    },
+    totalCallCount() {
+      return this.toNumber(this.dashboard.http) + this.toNumber(this.dashboard.rpc) + this.toNumber(this.dashboard.task);
+    },
+    flowOverviewMetrics() {
+      const total = this.totalCallCount;
+      const err = this.toNumber(this.dashboard.err);
+      const warn = this.toNumber(this.dashboard.warn);
+      return [
+        { label: '今日总调用', value: this.formatCompactNumber(total), tip: 'HTTP + RPC + TASK' },
+        { label: '成功率', value: this.formatPercent(total > 0 ? ((total - err) / total) * 100 : 0), tip: '按异常请求折算' },
+        { label: '错误率', value: this.formatPercent(total > 0 ? (err / total) * 100 : 0), tip: 'ERRCODE > 80' },
+        { label: '告警率', value: this.formatPercent(total > 0 ? (warn / total) * 100 : 0), tip: '日志异常占比' }
+      ];
+    },
+    hostOverviewMetrics() {
+      const total = this.app_hosts.length;
+      const valid = this.validHostCount;
+      const invalid = total - valid;
+      const envCount = this.hostEnvDistribution.length;
+      return [
+        { label: '主机总数', value: total || 0, tip: '当前应用已登记主机' },
+        { label: '可用主机', value: valid || 0, tip: '连接测试成功' },
+        { label: '异常主机', value: invalid > 0 ? invalid : 0, tip: '连接失败或网络不通' },
+        { label: '环境数量', value: envCount || 0, tip: '按 env 聚合' }
+      ];
+    },
+    hostEnvDistribution() {
+      const envMap = {};
+      this.app_hosts.forEach(item => {
+        const key = item.env || '未设置';
+        envMap[key] = (envMap[key] || 0) + 1;
+      });
+      return Object.keys(envMap).map(key => ({ name: key, value: envMap[key] })).sort((a, b) => b.value - a.value);
+    },
+    invalidHosts() {
+      return this.app_hosts.filter(item => item.valid !== 1).slice(0, 5);
+    },
+    apiOverviewMetrics() {
+      const total = this.apiAsset.total;
+      const signed = this.apiAsset.sign;
+      return [
+        { label: '接口总数', value: total || 0, tip: '当前应用全部接口' },
+        { label: '开放接口', value: this.apiAsset.open || 0, tip: '无需签名即可访问' },
+        { label: '签名接口', value: signed || 0, tip: 'MD5 / SHA256 保护' },
+        { label: '签名覆盖率', value: this.formatPercent(total > 0 ? (signed / total) * 100 : 0), tip: '接口安全覆盖水平' }
+      ];
+    },
+    apiModuleRank() {
+      return this.apiModules.slice().sort((a, b) => b.value - a.value);
+    },
+    releaseModeText() {
+      return this.releaseMode === 'package' ? '发布包模式' : 'Git 模式';
+    },
+    releaseOverviewMetrics() {
+      const buildCount = this.releaseBuilds.length;
+      const deployCount = this.releaseDeploys.length;
+      const buildSuccessCount = this.releaseBuilds.filter(item => item.success).length;
+      const deploySuccessCount = this.releaseDeploys.filter(item => item.success).length;
+      const buildDuration = this.averageDuration(this.releaseBuilds);
+      const deployDuration = this.averageDuration(this.releaseDeploys);
+      const latestDeploy = this.releaseDeploys.find(item => item.success && item.end);
+      return [
+        { label: '构建成功率', value: this.formatPercent(buildCount > 0 ? (buildSuccessCount / buildCount) * 100 : 0), tip: `最近 ${buildCount || 0} 次构建` },
+        { label: '部署成功率', value: this.formatPercent(deployCount > 0 ? (deploySuccessCount / deployCount) * 100 : 0), tip: `最近 ${deployCount || 0} 次部署` },
+        { label: '平均构建耗时', value: this.formatDurationByMs(buildDuration), tip: '仅统计已完成构建' },
+        { label: '最近成功发布', value: latestDeploy ? this.formatDateTime(latestDeploy.end || latestDeploy.start) : '-', tip: latestDeploy ? `Deploy #${latestDeploy.id}` : '暂无成功发布' }
+      ];
+    },
+    recentBuildList() {
+      return this.releaseBuilds.slice(0, 5);
+    },
+    recentDeployList() {
+      return this.releaseDeploys.slice(0, 5);
     }
+
   },
   mounted() {
     if (!this.app) {
       this.$router.push({ path: '/' });
       return;
     }
+    window.addEventListener('resize', this.handleResize);
     this.getYesterdayAndLastWeekQpm();
     request({
       url: "/admin/home/getAppNodeAndFuncList",
@@ -382,14 +621,121 @@ export default {
     });
     this.timerId = setInterval(this.getDashBoard, 30000);
     this.getStatList();
+    this.getOverviewStats();
+    this.getLoadInsight();
+    this.getApiAssetSummary();
+    this.getReleaseSummary();
     this.getAppHost();
   },
   beforeDestroy() {
     if (this.timerId) {
       clearInterval(this.timerId);
     }
+    window.removeEventListener('resize', this.handleResize);
   },
+
   methods: {
+    toNumber(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    },
+    formatCompactNumber(value) {
+      const num = this.toNumber(value);
+      if (num >= 10000) {
+        return `${(num / 10000).toFixed(num >= 100000 ? 0 : 1)}w`;
+      }
+      return `${num}`;
+    },
+    formatPercent(value) {
+      const num = this.toNumber(value);
+      return `${num.toFixed(1)}%`;
+    },
+    formatDateTime(value) {
+      if (!value) {
+        return '-';
+      }
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+      return date.format('yyyy-MM-dd hh:mm:ss');
+    },
+    formatDuration(start, end) {
+      if (!start || !end || end < start) {
+        return '-';
+      }
+      return this.formatDurationByMs(end - start);
+    },
+    formatDurationByMs(value) {
+      const ms = this.toNumber(value);
+      if (!ms) {
+        return '-';
+      }
+      const totalSeconds = Math.round(ms / 1000);
+      if (totalSeconds < 60) {
+        return `${totalSeconds} 秒`;
+      }
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return seconds > 0 ? `${minutes} 分 ${seconds} 秒` : `${minutes} 分`;
+    },
+    averageDuration(list) {
+      const durationList = (list || [])
+        .filter(item => item && item.start && item.end && item.end >= item.start)
+        .map(item => item.end - item.start);
+      if (durationList.length === 0) {
+        return 0;
+      }
+      return durationList.reduce((sum, item) => sum + item, 0) / durationList.length;
+    },
+    flattenApiList(list) {
+      const result = [];
+      (list || []).forEach(moduleItem => {
+        (moduleItem.funcList || []).forEach(funcItem => {
+          result.push({
+            ...funcItem,
+            service: moduleItem.service,
+            serviceName: moduleItem.name
+          });
+        });
+      });
+      return result;
+    },
+    formatBuildStatus(item) {
+      if (!item || !item.start) {
+        return '进行中';
+      }
+      return item.success ? '成功' : '失败';
+    },
+    setEmptyChart(chart, title) {
+      chart.clear();
+      chart.setOption({
+        title: {
+          text: title || '暂无数据',
+          left: 'center',
+          top: 'middle',
+          textStyle: {
+            color: '#94a3b8',
+            fontSize: 14,
+            fontWeight: 500
+          }
+        },
+        xAxis: { show: false },
+        yAxis: { show: false },
+        series: []
+      });
+    },
+    handleResize() {
+      ['main0', 'main1', 'main2', 'overviewMixChart', 'overviewTrendChart', 'overviewRankChart', 'overviewRiskChart', 'hostEnvChart', 'apiAssetChart'].forEach(refName => {
+        const el = this.$refs[refName];
+        if (el) {
+          const chart = echarts.getInstanceByDom(el);
+          if (chart) {
+            chart.resize();
+          }
+        }
+      });
+    },
     formatLatency(value) {
       if (value === undefined || value === null || value === 'NaN') {
         return '-';
@@ -397,6 +743,7 @@ export default {
       return value + 'ms';
     },
     resetHistoryFilter() {
+
       this.period = [new Date(Date.now() - 30 * 24 * 3600 * 1000), new Date(Date.now() - 24 * 3600 * 1000)];
       this.funcChoose = null;
       this.getStatList();
@@ -488,9 +835,13 @@ export default {
       }).then(res => {
         if (res.code === 0) {
           this.app_hosts = res.data;
+          this.$nextTick(() => {
+            this.renderHostEnvChart();
+          });
         }
       });
     },
+
     resetHostForm() {
       this.hostId = 0;
       this.hostIp = '';
@@ -627,9 +978,14 @@ export default {
       }).then(res => {
         this.dashboardUpdateTime = new Date().format("yyyy-MM-dd hh:mm:ss");
         this.dashboard = res.data && res.data.static && res.data.static.length > 0 ? res.data.static[0] : this.dashboard;
+        this.currentDayQpm = res.data.qps || [];
         this.initMain0(this.yesterdayQpm, this.lastweekQpm, res.data.qps || []);
+        this.$nextTick(() => {
+          this.renderFlowMixChart();
+        });
       });
     },
+
     getYesterdayAndLastWeekQpm() {
       request({
         url: "/admin/home/getQpmByDay",
@@ -649,7 +1005,290 @@ export default {
         });
       });
     },
+    getOverviewStats() {
+      const end = new Date();
+      const start = new Date(end.getTime() - 13 * 24 * 3600 * 1000);
+      request({
+        url: "/admin/home/appStat",
+        params: {
+          module: null,
+          func: null,
+          start: start.format("yyyyMMdd"),
+          end: end.format("yyyyMMdd")
+        }
+      }).then(res => {
+        this.overviewStats = res.data || [];
+        this.$nextTick(() => {
+          this.renderOverviewTrendChart();
+        });
+      });
+    },
+    getLoadInsight() {
+      const config = [
+        { type: 0, label: 'HTTP', bucket: 'normal' },
+        { type: 1, label: 'RPC', bucket: 'normal' },
+        { type: 2, label: 'TASK', bucket: 'normal' },
+        { type: 3, label: '异常', bucket: 'risk' },
+        { type: 4, label: '日志', bucket: 'risk' }
+      ];
+      Promise.all(config.map(item => {
+        return request({
+          url: "/admin/home/getModuleFuncLoad",
+          params: { type: item.type }
+        }).then(res => {
+          return {
+            ...item,
+            list: (res.data || []).map(record => ({
+              ...record,
+              scene: item.label,
+              num: this.toNumber(record.num),
+              fullName: `${record.module || '-'} / ${record.func || '-'}`
+            }))
+          };
+        });
+      })).then(result => {
+        const normal = [];
+        const risk = [];
+        result.forEach(item => {
+          if (item.bucket === 'normal') {
+            normal.push(...item.list);
+          } else {
+            risk.push(...item.list);
+          }
+        });
+        this.loadInsight.normal = normal.sort((a, b) => b.num - a.num).slice(0, 8);
+        this.loadInsight.risk = risk.sort((a, b) => b.num - a.num).slice(0, 8);
+        this.$nextTick(() => {
+          this.renderTopCharts();
+        });
+      });
+    },
+    getApiAssetSummary() {
+      request({
+        url: "/admin/apimkt/getApiList",
+        params: {}
+      }).then(res => {
+        const list = res.data || [];
+        const flatList = this.flattenApiList(list);
+        this.apiAsset = {
+          total: flatList.length,
+          open: flatList.filter(item => item.sign === 0).length,
+          sign: flatList.filter(item => item.sign === 1 || item.sign === 2).length,
+          md5: flatList.filter(item => item.sign === 1).length,
+          sha256: flatList.filter(item => item.sign === 2).length
+        };
+        this.apiModules = list.map(item => ({
+          label: item.name || item.service,
+          service: item.service,
+          value: (item.funcList || []).length
+        })).sort((a, b) => b.value - a.value);
+        this.$nextTick(() => {
+          this.renderApiAssetChart();
+        });
+      });
+    },
+    async getReleaseSummary() {
+      this.releaseLoading = true;
+      try {
+        const gitRes = await request({
+          url: "/admin/ops/gitCommitCheck",
+          params: {
+            commitid: '',
+            pageNo: 1,
+            pageSize: 6
+          }
+        });
+        let buildList = [];
+        if (gitRes.code === 1) {
+          this.releaseMode = 'package';
+          const buildRes = await request({
+            url: "/admin/ops/gitCommitPackageHis",
+            params: { commitid: 'default' }
+          });
+          buildList = (buildRes.data || []).map(item => ({ ...item, commitid: 'default' }));
+        } else {
+          this.releaseMode = 'git';
+          const commitIds = (gitRes.data || []).map(item => item.id).filter(Boolean).slice(0, 4);
+          const buildGroup = await Promise.all(commitIds.map(commitid => {
+            return request({
+              url: "/admin/ops/gitCommitPackageHis",
+              params: { commitid }
+            }).then(res => (res.data || []).map(item => ({ ...item, commitid })));
+          }));
+          buildList = buildGroup.reduce((acc, item) => acc.concat(item), []);
+        }
+        this.releaseBuilds = buildList.sort((a, b) => this.toNumber(b.start) - this.toNumber(a.start)).slice(0, 8);
+        if (this.releaseBuilds.length === 0) {
+          this.releaseDeploys = [];
+          return;
+        }
+        const deployGroup = await Promise.all(this.releaseBuilds.slice(0, 6).map(item => {
+          return request({
+            url: "/admin/ops/buildDeployHis",
+            params: {
+              commitid: item.commitid || 'default',
+              buildid: item.id
+            }
+          }).then(res => (res.data || []).map(record => ({
+            ...record,
+            buildid: item.id,
+            commitid: item.commitid || 'default'
+          }))).catch(() => []);
+        }));
+        this.releaseDeploys = deployGroup.reduce((acc, item) => acc.concat(item), []).sort((a, b) => this.toNumber(b.start) - this.toNumber(a.start)).slice(0, 8);
+      } catch (e) {
+        this.releaseBuilds = [];
+        this.releaseDeploys = [];
+      } finally {
+        this.releaseLoading = false;
+      }
+    },
+    renderFlowMixChart() {
+      if (!this.$refs.overviewMixChart) {
+        return;
+      }
+      const chart = echarts.getInstanceByDom(this.$refs.overviewMixChart) || echarts.init(this.$refs.overviewMixChart);
+      const source = [
+        { name: 'HTTP', value: this.toNumber(this.dashboard.http) },
+        { name: 'RPC', value: this.toNumber(this.dashboard.rpc) },
+        { name: 'TASK', value: this.toNumber(this.dashboard.task) },
+        { name: 'ERR', value: this.toNumber(this.dashboard.err) },
+        { name: 'WARN', value: this.toNumber(this.dashboard.warn) }
+      ].filter(item => item.value > 0);
+      if (source.length === 0) {
+        this.setEmptyChart(chart, '暂无流量数据');
+        return;
+      }
+      chart.setOption({
+        color: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+        tooltip: { trigger: 'item' },
+        legend: { bottom: 0 },
+        series: [{
+          name: '调用结构',
+          type: 'pie',
+          radius: ['48%', '72%'],
+          center: ['50%', '45%'],
+          avoidLabelOverlap: true,
+          label: { formatter: '{b}\n{c}' },
+          data: source
+        }]
+      });
+    },
+    renderOverviewTrendChart() {
+      if (!this.$refs.overviewTrendChart) {
+        return;
+      }
+      const chart = echarts.getInstanceByDom(this.$refs.overviewTrendChart) || echarts.init(this.$refs.overviewTrendChart);
+      if (!this.overviewStats.length) {
+        this.setEmptyChart(chart, '暂无趋势数据');
+        return;
+      }
+      chart.setOption({
+        color: ['#2563eb', '#10b981', '#f59e0b', '#ef4444'],
+        tooltip: { trigger: 'axis' },
+        legend: { top: 8 },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: this.overviewStats.map(item => item.dcdate) },
+        yAxis: { type: 'value' },
+        series: ['http', 'rpc', 'task', 'err'].map((key, index) => ({
+          name: ['HTTP', 'RPC', 'TASK', 'ERR'][index],
+          type: key === 'err' ? 'line' : 'bar',
+          stack: key === 'err' ? null : 'calls',
+          smooth: true,
+          barMaxWidth: 26,
+          data: this.overviewStats.map(item => this.toNumber(item[key]))
+        }))
+      });
+    },
+    renderBarChart(refName, list, title, colors) {
+      const el = this.$refs[refName];
+      if (!el) {
+        return;
+      }
+      const chart = echarts.getInstanceByDom(el) || echarts.init(el);
+      if (!list.length) {
+        this.setEmptyChart(chart, '暂无排行数据');
+        return;
+      }
+      chart.setOption({
+        color: Object.values(colors),
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+
+        grid: { left: '3%', right: '4%', bottom: '3%', top: '8%', containLabel: true },
+        xAxis: { type: 'value' },
+        yAxis: {
+          type: 'category',
+          inverse: true,
+          axisLabel: {
+            width: 140,
+            overflow: 'truncate'
+          },
+          data: list.map(item => item.fullName)
+        },
+        series: [{
+          name: title,
+          type: 'bar',
+          barWidth: 16,
+          data: list.map(item => ({ value: item.num, itemStyle: { color: colors[item.scene] || '#2563eb' } }))
+        }]
+      });
+    },
+    renderTopCharts() {
+      this.renderBarChart('overviewRankChart', this.loadInsight.normal, '调用量', { HTTP: '#2563eb', RPC: '#10b981', TASK: '#f59e0b' });
+      this.renderBarChart('overviewRiskChart', this.loadInsight.risk, '风险量', { 异常: '#ef4444', 日志: '#8b5cf6' });
+    },
+    renderHostEnvChart() {
+      if (!this.$refs.hostEnvChart) {
+        return;
+      }
+      const chart = echarts.getInstanceByDom(this.$refs.hostEnvChart) || echarts.init(this.$refs.hostEnvChart);
+      if (!this.hostEnvDistribution.length) {
+        this.setEmptyChart(chart, '暂无主机数据');
+        return;
+      }
+      chart.setOption({
+        color: ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#f97316'],
+        tooltip: { trigger: 'item' },
+        series: [{
+          type: 'pie',
+          radius: ['42%', '68%'],
+          label: { formatter: '{b}\n{c}' },
+          data: this.hostEnvDistribution
+        }]
+      });
+    },
+    renderApiAssetChart() {
+      if (!this.$refs.apiAssetChart) {
+        return;
+      }
+      const chart = echarts.getInstanceByDom(this.$refs.apiAssetChart) || echarts.init(this.$refs.apiAssetChart);
+      if (!this.apiModuleRank.length) {
+        this.setEmptyChart(chart, '暂无接口资产');
+        return;
+      }
+      chart.setOption({
+        color: ['#2563eb'],
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: '8%', containLabel: true },
+        xAxis: { type: 'value' },
+        yAxis: {
+          type: 'category',
+          inverse: true,
+          axisLabel: {
+            width: 120,
+            overflow: 'truncate'
+          },
+          data: this.apiModuleRank.slice(0, 6).map(item => item.label)
+        },
+        series: [{
+          type: 'bar',
+          barWidth: 16,
+          data: this.apiModuleRank.slice(0, 6).map(item => item.value)
+        }]
+      });
+    },
     getStatList() {
+
       if (this.period == null || this.period[0] === undefined || this.period[1] === undefined) {
         this.$message.warning('开始和结束日期不能为空');
         return;
@@ -685,11 +1324,49 @@ export default {
       }
       return timeArray;
     },
+    // 按颗粒度生成时间轴
+    generateGranularTimeArray(start, end, granularity) {
+      const step = parseInt(granularity);
+      const timeArray = [];
+      let flag = false;
+      for (let minutes = 0; minutes < 1440; minutes += step) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        const timeString = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        if (start === timeString || (!flag && start <= timeString)) flag = true;
+        if (flag) timeArray.push(timeString);
+        if (timeString >= end) break;
+      }
+      return timeArray.length ? timeArray : [start];
+    },
     datafilter(xAxis, data) {
       return xAxis.data.map(x => {
         const matched = data.find(y => x === y.dctime.substr(11, 5));
         return matched ? matched.num : 0;
       });
+    },
+    // 按颗粒度聚合数据
+    datafilterByGranularity(xAxis, data, granularity) {
+      const step = parseInt(granularity);
+      return xAxis.map(bucketLabel => {
+        const bucketParts = bucketLabel.split(':');
+        const baseHour = parseInt(bucketParts[0]);
+        const baseMin = parseInt(bucketParts[1]);
+        let sum = 0;
+        for (let offset = 0; offset < step; offset++) {
+          let m = baseMin + offset;
+          let h = baseHour;
+          if (m >= 60) { h += Math.floor(m / 60); m = m % 60; }
+          if (h >= 24) break;
+          const ts = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+          const matched = data.find(y => y.dctime && y.dctime.substr(11, 5) === ts);
+          sum += matched ? (matched.num || 0) : 0;
+        }
+        return sum;
+      });
+    },
+    onGranularityChange() {
+      this.initMain0(this.yesterdayQpm, this.lastweekQpm, this.currentDayQpm);
     },
     initMain0(yesterday, lasweek, today) {
       const baseData = today.length ? today : (yesterday.length ? yesterday : lasweek);
@@ -697,13 +1374,20 @@ export default {
         return;
       }
       const chart = echarts.getInstanceByDom(this.$refs.main0) || echarts.init(this.$refs.main0);
+      const granularity = this.chartGranularity;
       const toolbox = { feature: { dataView: { show: true, readOnly: false }, magicType: { show: true, type: ['line', 'bar'] }, restore: { show: true }, saveAsImage: {} } };
       const tooltip = { trigger: 'axis', axisPointer: { type: 'shadow' } };
-      const xAxis = { type: 'category', data: this.generateTimeArray(baseData[0].dctime.substr(11, 5), baseData[baseData.length - 1].dctime.substr(11, 5)) };
+      const xData = granularity === '1'
+        ? this.generateTimeArray(baseData[0].dctime.substr(11, 5), baseData[baseData.length - 1].dctime.substr(11, 5))
+        : this.generateGranularTimeArray(baseData[0].dctime.substr(11, 5), baseData[baseData.length - 1].dctime.substr(11, 5), granularity);
+      const xAxis = { type: 'category', data: xData };
       const yAxis = { type: 'value' };
       const grid = { left: '3%', right: '4%', bottom: '3%', containLabel: true };
       const legend = { selectedMode: true };
-      const dataZoom = [{ type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: false }];
+      const dataZoom = [{ type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: true }];
+      const seriesDataToday = granularity === '1' ? this.datafilter(xAxis, today) : this.datafilterByGranularity(xData, today, granularity);
+      const seriesDataYesterday = granularity === '1' ? this.datafilter(xAxis, yesterday) : this.datafilterByGranularity(xData, yesterday, granularity);
+      const seriesDataLastWeek = granularity === '1' ? this.datafilter(xAxis, lasweek) : this.datafilterByGranularity(xData, lasweek, granularity);
       chart.setOption({
         color: ['#2563eb', '#10b981', '#f59e0b'],
         title: { text: '应用负载', textStyle: { color: '#0f172a', fontSize: 16 } },
@@ -715,10 +1399,23 @@ export default {
         xAxis,
         dataZoom,
         series: [
-          { name: '今天', type: 'line', smooth: true, symbol: 'none', areaStyle: { opacity: 0.12 }, data: this.datafilter(xAxis, today), endLabel: { show: true, formatter: () => '今天' } },
-          { name: '一天前', type: 'line', smooth: true, symbol: 'none', data: this.datafilter(xAxis, yesterday), endLabel: { show: true, formatter: () => '一天前' } },
-          { name: '一周前', type: 'line', smooth: true, symbol: 'none', data: this.datafilter(xAxis, lasweek), endLabel: { show: true, formatter: () => '一周前' } }
+          { name: '今天', type: 'line', smooth: true, symbol: 'none', areaStyle: { opacity: 0.12 }, data: seriesDataToday, endLabel: { show: true, formatter: () => '今天' } },
+          { name: '一天前', type: 'line', smooth: true, symbol: 'none', data: seriesDataYesterday, endLabel: { show: true, formatter: () => '一天前' } },
+          { name: '一周前', type: 'line', smooth: true, symbol: 'none', data: seriesDataLastWeek, endLabel: { show: true, formatter: () => '一周前' } }
         ]
+      });
+      // 让鼠标滚轮事件穿透图表，恢复页面滚动（Ctrl/Cmd+滚轮保留缩放功能）
+      chart.getZr().on('mousewheel', (e) => {
+        if (e.event.ctrlKey || e.event.metaKey) {
+          return; // 放行给 dataZoom 执行缩放
+        }
+        e.event.preventDefault();
+        e.event.stopPropagation();
+        const delta = e.event.wheelDelta || -e.event.deltaY;
+        const container = document.querySelector('.app-page__main') || document.scrollingElement;
+        if (container) {
+          container.scrollTop -= delta;
+        }
       });
     },
     initEcharts(data) {
@@ -733,6 +1430,7 @@ export default {
       const yAxis = { type: 'value' };
       const grid = { left: '3%', right: '4%', bottom: '3%', containLabel: true };
       const legend = { selectedMode: true };
+      const dataZoom = [{ type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: true }];
       chart1.setOption({
         color: ['#2563eb', '#10b981', '#f59e0b', '#ef4444'],
         title: { text: '调用次数', textStyle: { color: '#0f172a', fontSize: 16 } },
@@ -742,6 +1440,7 @@ export default {
         toolbox,
         yAxis,
         xAxis,
+        dataZoom,
         series: ['HTTP', 'RPC', 'TASK', 'ERR'].map(x => {
           return { name: x, type: 'bar', stack: 'total', barWidth: '62%', data: data.map(y => y[x.toLowerCase()]) };
         })
@@ -755,9 +1454,22 @@ export default {
         toolbox,
         yAxis,
         xAxis,
+        dataZoom,
         series: ['MIN', 'MAX', 'AVG', 'P90', 'P95', 'P99'].map(x => {
           return { name: x, type: 'line', smooth: true, symbol: 'none', data: data.map(y => y[x.toLowerCase()]) };
         })
+      });
+      [chart1, chart2].forEach(chart => {
+        chart.getZr().on('mousewheel', (e) => {
+          if (e.event.ctrlKey || e.event.metaKey) return;
+          e.event.preventDefault();
+          e.event.stopPropagation();
+          const delta = e.event.wheelDelta || -e.event.deltaY;
+          const container = document.querySelector('.app-page__main') || document.scrollingElement;
+          if (container) {
+            container.scrollTop -= delta;
+          }
+        });
       });
     }
   }
@@ -777,7 +1489,135 @@ export default {
   margin-top: 10px;
 }
 
+.app-dashboard__overview-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.app-dashboard__insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.app-dashboard__overview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app-dashboard__overview-panel--summary {
+  justify-content: space-between;
+}
+
+.app-dashboard__overview-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.app-dashboard__overview-metrics--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 4px;
+}
+
+.app-dashboard__mini-stat {
+  padding: 12px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.app-dashboard__mini-stat-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.app-dashboard__mini-stat-value {
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.app-dashboard__mini-stat-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.app-dashboard__dual-chart {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.app-dashboard__host-overview,
+.app-dashboard__api-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 12px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.app-dashboard__release-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.app-dashboard__mini-list {
+  padding: 12px;
+  border-radius: 14px;
+  background: #f8fbff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.app-dashboard__mini-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.28);
+}
+
+.app-dashboard__mini-list-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.app-dashboard__mini-list-item--stack {
+  display: block;
+}
+
+.app-dashboard__mini-list-main {
+  min-width: 0;
+  color: #0f172a;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.app-dashboard__mini-list-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.app-dashboard__mini-list-value {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #334155;
+}
+
 .app-dashboard__chart-grid {
+
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
@@ -794,6 +1634,15 @@ export default {
 .app-dashboard__chart--large {
   height: 460px;
 }
+
+.app-dashboard__chart--medium {
+  height: 320px;
+}
+
+.app-dashboard__chart--small {
+  height: 260px;
+}
+
 
 .app-dashboard__dialog-scroll {
   max-height: 420px;
@@ -856,10 +1705,27 @@ export default {
   vertical-align: bottom;
 }
 
-@media (max-width: 992px) {
-  .app-dashboard__chart-grid,
-  .app-dashboard__permission-grid {
+@media (max-width: 1200px) {
+  .app-dashboard__overview-grid,
+  .app-dashboard__insight-grid,
+  .app-dashboard__dual-chart,
+  .app-dashboard__release-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-dashboard__host-overview,
+  .app-dashboard__api-overview {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 992px) {
+  .app-dashboard__chart-grid,
+  .app-dashboard__permission-grid,
+  .app-dashboard__overview-metrics,
+  .app-dashboard__overview-metrics--compact {
+    grid-template-columns: 1fr;
+  }
+}
+
 </style>

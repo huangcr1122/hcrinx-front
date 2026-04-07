@@ -9,22 +9,8 @@
         <el-button size="small" icon="el-icon-refresh-right" @click="getAllowApps">刷新应用列表</el-button>
       </div>
     </div>
-    <div class="summary-grid dashboard-summary">
-
-        <div
-          v-for="(item, index) in summaryCards"
-          :key="item.label"
-          :class="['summary-item', { 'summary-item--clickable': item.action }]"
-          @click="item.action && item.action()"
-        >
-          <div class="summary-item__label">{{ item.label }}</div>
-          <div class="summary-item__value">{{ item.value }}</div>
-          <div class="summary-item__meta">{{ item.meta }}</div>
-          <i v-if="item.action" class="el-icon-arrow-right summary-item__arrow"></i>
-        </div>
-      </div>
-
     <el-card shadow="never" class="panel-card">
+
 
       <div v-for="section in roleSections" :key="section.key" :ref="section.key" class="section-block">
         <div class="panel-header dashboard-page__section-header">
@@ -83,31 +69,9 @@ export default {
     heroHint() {
       return this.lastUpdatedAt ? `最近同步 ${this.lastUpdatedAt}` : '支持按角色分组快速进入应用';
     },
-    summaryCards() {
-      return [
-        {label: '全部应用', value: this.totalApps, meta: '按当前账号权限自动汇总'},
-        {
-          label: '管理员',
-          value: this.appList1.length,
-          meta: '可执行配置、发布与告警管理',
-          action: () => this.scrollToSection('admin')
-        },
-        {
-          label: '开发者',
-          value: this.appList2.length,
-          meta: '可查看调用、日志与作业信息',
-          action: () => this.scrollToSection('developer')
-        },
-        {
-          label: '访客',
-          value: this.appList3.length,
-          meta: '仅浏览基础信息与监控数据',
-          action: () => this.scrollToSection('guest')
-        },
-      ];
-    },
     roleSections() {
       return [
+
         {
           key: 'admin',
           title: '管理员',
@@ -146,6 +110,8 @@ export default {
       this.$router.push({path: '/app'});
     },
     scrollToSection(sectionKey) {
+
+
       const elements = this.$refs[sectionKey];
       if (elements && elements.length > 0) {
         const element = elements[0];

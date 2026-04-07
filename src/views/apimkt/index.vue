@@ -16,7 +16,7 @@
           <div class="page-toolbar__group">
             <el-checkbox v-model="selectAll" @change="handleSelectAll">全选</el-checkbox>
             <el-tag type="info">已选 {{ selectedCount }}</el-tag>
-            <el-button size="small" type="primary" icon="el-icon-download" @click="exportMultipleToHTML">导出已选</el-button>
+            <el-button size="small" type="primary" icon="el-icon-download" :loading="exporting" :disabled="selectedCount === 0" @click="exportMultipleToHTML">导出已选</el-button>
           </div>
 
         </div>
@@ -81,7 +81,6 @@
               <div class="panel-title api-market__section-title">请求地址</div>
               <div class="api-market__url-card">
                 <div><span class="muted-text">Local：</span><el-link :href="apiUrl()" :underline="false" type="primary">{{ apiUrl() }}</el-link></div>
-                <div><span class="muted-text">Network：</span><el-link :href="apiUrl2()" :underline="false" type="primary">{{ apiUrl2() }}</el-link></div>
               </div>
             </div>
 
@@ -231,6 +230,7 @@ export default {
       testResponseStatus: 0,
       testResponseTime: 0,
       testLoading: false,
+      exporting: false,
       typeReferrer: {
         byte: "int8",
         "java.lang.Byte": "int8",
@@ -469,9 +469,6 @@ export default {
       const url = location.href;
       return url.substring(0, url.indexOf("#")) + this.funcdoc.func;
     },
-    apiUrl2() {
-      return "https://wxtest.guosen.com.cn/" + this.funcdoc.func;
-    },
     typeFormatter(index) {
       let arrEndFix = "";
       let type = index.type;
@@ -704,13 +701,10 @@ export default {
         this.$message.warning('请先选择要导出的接口');
         return;
       }
+      this.exporting = true;
       this.$message.info('正在生成文档，请稍候...');
       try {
-        const apiDocs = [];
-        for (const api of this.selectedApis) {
-          const doc = await this.getApiDocDetail(api.func);
-          apiDocs.push(doc);
-        }
+        const apiDocs = await Promise.all(this.selectedApis.map(api => this.getApiDocDetail(api.func)));
         const htmlContent = this.generateMultiApiHTML(apiDocs);
         const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
         saveAs(blob, `${this.app + '接口文档_' + new Date().format("yyyyMMdd_hhmmss")}.html`);
@@ -718,6 +712,8 @@ export default {
       } catch (error) {
         console.error('导出失败', error);
         this.$message.error('导出失败');
+      } finally {
+        this.exporting = false;
       }
     },
     getApiDocDetail(func) {
@@ -733,238 +729,591 @@ export default {
       });
     },
     generateMultiApiHTML(apiDocs) {
+      const exportTime = new Date().format('yyyy-MM-dd hh:mm:ss');
       const groupedApis = this.groupApisByModule(apiDocs);
-      let sectionsHTML = '';
+      const moduleEntries = Object.keys(groupedApis).map((moduleName, index) => ({
+        key: `module-${index}`,
+        name: moduleName,
+        apis: groupedApis[moduleName]
+      }));
+      const totalApiCount = apiDocs.length;
+      const openApiCount = apiDocs.filter(doc => doc.sign === 0).length;
+      const signApiCount = apiDocs.filter(doc => doc.sign === 1 || doc.sign === 2).length;
+      const tocHTML = this.generateTOC(moduleEntries);
+      const apiSearchData = [];
       let apiIndex = 0;
-      Object.keys(groupedApis).forEach(moduleName => {
-        const moduleApis = groupedApis[moduleName];
-        sectionsHTML += `
-      <div class="module-section" id="module-${this.slugify(moduleName)}">
-        <h2 class="module-title">${moduleName}</h2>
-    `;
-        moduleApis.forEach(api => {
-          sectionsHTML += this.generateApiSectionHTML(api, apiIndex);
-          apiIndex++;
-        });
-        sectionsHTML += `</div>`;
-      });
-      const tocHTML = this.generateTOC(groupedApis);
+      const sectionsHTML = moduleEntries.map(module => {
+        const apiSections = module.apis.map(api => {
+          apiSearchData.push({
+            id: `api-${apiIndex}`,
+            name: api.name || '',
+            func: api.func || '',
+            description: api.description || '',
+            moduleKey: module.key,
+            moduleName: module.name
+          });
+          const sectionHTML = this.generateApiSectionHTML(api, apiIndex);
+          apiIndex += 1;
+          return sectionHTML;
+        }).join('');
+        return `
+      <section class="module-section" id="${module.key}">
+        <div class="panel-header export-module__header">
+          <div class="panel-header__main">
+            <div class="panel-title">${this.escapeHtml(module.name)}</div>
+            <div class="panel-subtitle">共 ${module.apis.length} 个接口，支持目录检索、模块折叠与定位跳转。</div>
+          </div>
+          <span class="status-pill">${module.apis.length} 个接口</span>
+        </div>
+        ${apiSections}
+      </section>`;
+      }).join('');
       return `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>API文档</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: "Microsoft YaHei", Arial, sans-serif; line-height: 1.4; color: #333; padding: 0; margin: 0; font-size: 14px; display: flex; min-height: 100vh; }
-        .sidebar { width: 320px; background: #f8f9fa; border-right: 1px solid #e0e0e0; position: fixed; left: 0; top: 0; overflow-y: auto; padding: 5px; }
-        .sidebar h2 { color: #409EFF; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0; font-size: 16px; }
-        .search-box { margin-bottom: 15px; }
-        .search-box input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
-        .search-box input:focus { outline: none; border-color: #409EFF; box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2); }
-        .toc { max-height: calc(100vh - 175px); overflow-y: auto; }
-        .toc ul { list-style: none; padding: 0; }
-        .toc > ul > li { margin: 8px 0; }
-        .module-item { margin: 10px 0; }
-        .module-header { display: flex; align-items: center; cursor: pointer; padding: 8px 10px; border-radius: 4px; transition: all 0.3s; user-select: none; }
-        .module-header:hover { background: #e8f4ff; }
-        .module-header .toggle-icon { margin-right: 6px; font-size: 12px; transition: transform 0.3s; color: #666; }
-        .module-header.collapsed .toggle-icon { transform: rotate(-90deg); }
-        .module-name { font-weight: bold; color: #333; font-size: 14px; }
-        .module-count { margin-left: auto; background: #409EFF; color: white; border-radius: 10px; padding: 2px 8px; font-size: 12px; }
-        .api-list { list-style: none; padding: 0; margin: 5px 0 5px 20px; overflow: hidden; transition: max-height 0.3s ease; }
-        .api-list.collapsed { max-height: 0; }
-        .api-list li { margin: 4px 0; }
-        .api-list a { color: #666; text-decoration: none; display: block; padding: 6px 10px 6px 20px; border-radius: 3px; transition: all 0.3s; font-size: 13px; position: relative; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .api-list a:before { content: "•"; color: #409EFF; position: absolute; left: 8px; }
-        .api-list a:hover { background: #e8f4ff; color: #409EFF; }
-        .api-list a.active { background: #409EFF; color: white; }
-        .highlight { background-color: #ffeb3b; padding: 0 2px; border-radius: 2px; }
-        .no-results { color: #999; font-style: italic; padding: 10px; text-align: center; font-size: 13px; }
-        .content { flex: 1; margin-left: 320px; padding: 20px 40px; max-width: calc(100% - 320px); }
-        .api-section { margin-bottom: 40px; padding: 25px; border: 1px solid #e0e0e0; border-radius: 8px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); scroll-margin-top: 20px; }
-        .module-section { margin-bottom: 30px; }
-        .module-title { color: #409EFF; margin: 30px 0 15px 0; border-left: 4px solid #409EFF; padding-left: 10px; font-size: 20px; }
-        h1 { color: #409EFF; margin-bottom: 15px; border-bottom: 2px solid #409EFF; padding-bottom: 10px; font-size: 24px; }
-        h2 { color: #409EFF; margin: 20px 0 12px 0; font-size: 18px; }
-        .httpUrl { background: #f8f9fa; padding: 12px; border-left: 3px solid #409EFF; margin: 10px 0; font-family: monospace; font-size: 14px; border-radius: 3px; }
-        table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; white-space: pre-wrap; }
-        th { background-color: #f5f7fa; font-weight: bold; color: #333; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .divider { height: 1px; background: #e8e8e8; margin: 20px 0; }
-        a { color: #409EFF; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .basic-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin: 15px 0; }
-        .info-item { display: flex; align-items: center; }
-        .info-label { font-weight: bold; min-width: 100px; color: #666; }
-        .back-to-top { position: fixed; bottom: 30px; right: 30px; background: #409EFF; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.2); transition: all 0.3s; z-index: 1000; }
-        .back-to-top:hover { background: #66b1ff; transform: translateY(-2px); }
-        @media (max-width: 768px) { .sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 1px solid #e0e0e0; } .content { margin-left: 0; max-width: 100%; } body { flex-direction: column; } }
-        @media print { .back-to-top, .sidebar { display: none; } .content { margin-left: 0; max-width: 100%; padding: 0; } .api-section { page-break-inside: avoid; } }
-        code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 12px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this.escapeHtml(this.app)} 接口文档</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --text: #1f2937;
+      --muted: #64748b;
+      --muted-light: #94a3b8;
+      --primary: #2563eb;
+      --primary-soft: rgba(37, 99, 235, 0.08);
+      --border: rgba(226, 232, 240, 0.9);
+      --card-bg: rgba(255, 255, 255, 0.96);
+      --card-grad: linear-gradient(180deg, #ffffff, #f8fbff);
+      --shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+      --shadow-strong: 0 24px 64px rgba(15, 23, 42, 0.12);
+      --radius-xl: 20px;
+      --radius-lg: 16px;
+      --radius-md: 14px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
+        radial-gradient(circle at left top, rgba(16, 185, 129, 0.08), transparent 24%),
+        var(--bg);
+    }
+    a { color: inherit; text-decoration: none; }
+    .page-shell { display: flex; gap: 16px; padding: 18px; }
+    .panel-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+    }
+    .page-header, .panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .panel-header { margin-bottom: 14px; }
+    .page-header__main, .panel-header__main { min-width: 0; flex: 1; }
+    .page-header__actions, .panel-header__actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .page-header__title { font-size: 24px; font-weight: 700; line-height: 1.3; color: #0f172a; }
+    .page-header__desc, .panel-subtitle { margin-top: 6px; font-size: 13px; line-height: 1.7; color: var(--muted); }
+    .panel-title { font-size: 18px; font-weight: 700; color: #0f172a; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .status-pill--success { background: rgba(16, 185, 129, 0.12); color: #059669; }
+    .status-pill--warning { background: rgba(245, 158, 11, 0.14); color: #d97706; }
+    .status-pill--danger { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+    .export-sidebar {
+      width: 320px;
+      flex: 0 0 320px;
+      position: sticky;
+      top: 18px;
+      align-self: flex-start;
+      max-height: calc(100vh - 36px);
+    }
+    .export-sidebar__card { padding: 18px; }
+    .export-main { min-width: 0; flex: 1; }
+    .export-hero { padding: 20px; margin-bottom: 16px; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .summary-item {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--card-grad);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+    .summary-item__label { font-size: 12px; color: var(--muted); }
+    .summary-item__value { margin-top: 6px; font-size: 22px; line-height: 1.25; font-weight: 700; color: #0f172a; }
+    .summary-item__meta { margin-top: 6px; font-size: 12px; line-height: 1.5; color: var(--muted-light); }
+    .page-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+    .page-toolbar__group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .toolbar-input {
+      width: 100%;
+      min-height: 36px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1px solid #dbe4f0;
+      background: rgba(255, 255, 255, 0.96);
+      color: #1e293b;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .toolbar-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12); }
+    .toolbar-button {
+      border: 1px solid #dbe4f0;
+      border-radius: 10px;
+      background: #fff;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .toolbar-button:hover { border-color: #93c5fd; background: #f8fbff; }
+    .toolbar-button--primary { border-color: transparent; background: var(--primary); color: #fff; }
+    .toolbar-button--primary:hover { background: #1d4ed8; }
+    .tree-shell {
+      overflow: auto;
+      border-radius: 16px;
+      padding: 12px;
+      background: #f8fbff;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      max-height: calc(100vh - 220px);
+    }
+    .toc-list, .toc-api-list { list-style: none; padding: 0; margin: 0; }
+    .toc-module + .toc-module { margin-top: 10px; }
+    .toc-module__header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      cursor: pointer;
+      user-select: none;
+    }
+    .toc-module__header:hover { background: #f8fbff; }
+    .toc-toggle {
+      width: 18px;
+      text-align: center;
+      color: var(--muted);
+      transition: transform 0.2s ease;
+      flex: 0 0 18px;
+    }
+    .toc-module.is-collapsed .toc-toggle { transform: rotate(-90deg); }
+    .toc-module__name { min-width: 0; flex: 1; font-size: 13px; font-weight: 700; color: #0f172a; }
+    .toc-module__count {
+      flex: 0 0 auto;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .toc-api-list { margin: 8px 0 0; padding-left: 10px; }
+    .toc-module.is-collapsed .toc-api-list { display: none; }
+    .toc-api-item + .toc-api-item { margin-top: 6px; }
+    .toc-link {
+      display: block;
+      padding: 8px 12px;
+      border-radius: 12px;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.5;
+      transition: all 0.2s ease;
+    }
+    .toc-link:hover { background: #edf5ff; color: var(--primary); }
+    .toc-link.is-active { background: var(--primary); color: #fff; box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24); }
+    .highlight { background: rgba(250, 204, 21, 0.45); padding: 0 2px; border-radius: 4px; }
+    .export-sidebar__tip { margin-top: 8px; font-size: 12px; color: var(--muted); }
+    .export-no-result {
+      margin-top: 12px;
+      padding: 18px 12px;
+      border: 1px dashed rgba(148, 163, 184, 0.36);
+      border-radius: 14px;
+      text-align: center;
+      color: var(--muted);
+      background: linear-gradient(180deg, #f8fbff, #f1f5f9);
+      display: none;
+    }
+    .module-section + .module-section { margin-top: 18px; }
+    .export-module__header { padding: 4px 2px 2px; }
+    .api-section {
+      padding: 20px;
+      margin-top: 12px;
+      scroll-margin-top: 18px;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .info-item {
+      min-width: 0;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #f8fbff;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    .info-item__label { font-size: 12px; color: var(--muted); }
+    .info-item__value { margin-top: 6px; font-size: 14px; line-height: 1.55; color: #0f172a; word-break: break-word; }
+    .section-block + .section-block { margin-top: 14px; }
+    .section-caption { margin-bottom: 10px; font-size: 13px; color: var(--muted); }
+    .url-card, .sign-card {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #0f172a, #1e293b);
+      color: #e2e8f0;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .url-card a, .sign-card a { color: #93c5fd; }
+    .muted-text { color: var(--muted); }
+    .mono-text { font-family: Consolas, Monaco, monospace; }
+    .doc-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+    .doc-table th {
+      background: #f8fafc;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid #edf2f7;
+    }
+    .doc-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #edf2f7;
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.6;
+      vertical-align: top;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .doc-table tr:nth-child(even) td { background: #fcfdff; }
+    .doc-table tr:hover td { background: #f8fbff; }
+    .doc-table code {
+      display: inline-block;
+      max-width: 100%;
+      padding: 2px 6px;
+      border-radius: 8px;
+      background: #f8fafc;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 12px;
+      color: #0f172a;
+      white-space: pre-wrap;
+    }
+    .param-name { display: inline-block; min-width: 0; }
+    .empty-state {
+      padding: 18px 16px;
+      border-radius: 16px;
+      border: 1px dashed rgba(148, 163, 184, 0.36);
+      background: linear-gradient(180deg, #f8fbff, #f1f5f9);
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+    }
+    .back-to-top {
+      position: fixed;
+      right: 26px;
+      bottom: 26px;
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 999px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow: var(--shadow-strong);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .back-to-top.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-to-top:hover { transform: translateY(-2px); }
+    @media (max-width: 1280px) {
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 992px) {
+      .page-shell { flex-direction: column; }
+      .export-sidebar { position: static; width: 100%; max-height: none; }
+      .tree-shell { max-height: none; }
+      .page-header, .panel-header { flex-direction: column; align-items: flex-start; }
+      .info-grid, .summary-grid { grid-template-columns: 1fr; }
+    }
+    @media print {
+      .export-sidebar, .back-to-top { display: none !important; }
+      .page-shell { padding: 0; }
+      .export-main { width: 100%; }
+      .api-section, .export-hero { box-shadow: none; }
+    }
+  </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h2>API接口目录</h2>
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="搜索接口名称..." oninput="filterApis()">
+  <div class="page-shell">
+    <aside class="export-sidebar">
+      <div class="panel-card export-sidebar__card">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">接口目录</div>
+            <div class="panel-subtitle">已导出 ${totalApiCount} 个接口。</div>
+          </div>
         </div>
-        <div class="toc" id="tocContainer">
-            <ul>
-                ${tocHTML}
-            </ul>
+        <div class="tree-shell" id="tocContainer">
+          <ul class="toc-list">
+            ${tocHTML}
+          </ul>
+          <div id="noResults" class="export-no-result">未找到匹配的接口</div>
         </div>
-    </div>
-    <div class="content">
-        ${sectionsHTML}
-        <button class="back-to-top" onclick="scrollToTop()">↑</button>
-    </div>
-    <script>
-        const apiData = ${JSON.stringify(apiDocs.map((doc, index) => ({ id: index, name: doc.name, module: doc.serviceName || '未分类模块', description: doc.description || '' })))};
-        const moduleStates = {};
-        Object.keys(apiData.reduce((acc, api) => { acc[api.module] = true; return acc; }, {})).forEach(module => { moduleStates[module] = true; });
-        function scrollToSection(sectionId) { const target = document.getElementById(sectionId); if (target) { target.scrollIntoView({ behavior: 'smooth' }); updateActiveNav(sectionId); } }
-        function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
-        function updateActiveNav(activeId) { document.querySelectorAll('.api-list a').forEach(link => { link.classList.remove('active'); if (link.getAttribute('href') === '#' + activeId) { link.classList.add('active'); } }); }
-        function toggleModule(moduleName) {
-            const moduleElement = document.querySelector('[data-module="' + moduleName + '"]');
-            const apiList = moduleElement.querySelector('.api-list');
-
-            const moduleHeader = moduleElement.querySelector('.module-header');
-            moduleStates[moduleName] = !moduleStates[moduleName];
-            if (moduleStates[moduleName]) { apiList.classList.remove('collapsed'); moduleHeader.classList.remove('collapsed'); }
-            else { apiList.classList.add('collapsed'); moduleHeader.classList.add('collapsed'); }
+      </div>
+    </aside>
+    <main class="export-main">
+      <section class="panel-card export-hero">
+        <div class="page-header">
+          <div class="page-header__main">
+            <div class="page-header__title">${this.escapeHtml(this.app)} 接口导出文档</div>
+          </div>
+          <div class="page-header__actions">
+            <span class="status-pill">HTML 文档</span>
+            <span class="status-pill">导出时间 ${this.escapeHtml(exportTime)}</span>
+          </div>
+        </div>
+      </section>
+      ${sectionsHTML}
+    </main>
+  </div>
+  <button id="backToTop" class="back-to-top" type="button" aria-label="回到顶部">↑</button>
+  <script>
+    const apiData = ${JSON.stringify(apiSearchData.map(item => ({
+      id: item.id,
+      moduleKey: item.moduleKey,
+      moduleName: item.moduleName,
+      name: item.name,
+      func: item.func,
+      description: item.description,
+      nameLower: (item.name || '').toLowerCase(),
+      funcLower: (item.func || '').toLowerCase(),
+      descriptionLower: (item.description || '').toLowerCase()
+    })))};
+    const apiDataMap = apiData.reduce((acc, item) => {
+      acc[item.id] = item;
+      return acc;
+    }, {});
+    const moduleStates = ${JSON.stringify(moduleEntries.reduce((acc, item) => {
+      acc[item.key] = true;
+      return acc;
+    }, {}))};
+    function scrollToSection(sectionId) {
+      const target = document.getElementById(sectionId);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        updateActiveNav(sectionId);
+      }
+    }
+    function getScrollTop() {
+      return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    }
+    function scrollToTop() {
+      const scrollTarget = document.scrollingElement || document.documentElement || document.body;
+      if (window.scrollTo) {
+        try {
+          window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+        } catch (error) {
+          window.scrollTo(0, 0);
         }
-        function toggleAllModules(expand) {
-            Object.keys(moduleStates).forEach(moduleName => {
-                moduleStates[moduleName] = expand;
-                const moduleElement = document.querySelector('[data-module="' + moduleName + '"]');
-                if (moduleElement) {
-
-                    const apiList = moduleElement.querySelector('.api-list');
-                    const moduleHeader = moduleElement.querySelector('.module-header');
-                    if (expand) { apiList.classList.remove('collapsed'); moduleHeader.classList.remove('collapsed'); }
-                    else { apiList.classList.add('collapsed'); moduleHeader.classList.add('collapsed'); }
-                }
-            });
-        }
-        function filterApis() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
-            const tocContainer = document.getElementById('tocContainer');
-            if (!searchTerm) {
-                document.querySelectorAll('.module-item, .api-list li').forEach(el => { el.style.display = ''; });
-                document.querySelectorAll('.api-list a').forEach(link => { link.innerHTML = link.textContent; });
-                toggleAllModules(true);
-                return;
+      }
+      if (scrollTarget) {
+        scrollTarget.scrollTop = 0;
+      }
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+    function updateBackToTop() {
+      const backToTopButton = document.getElementById('backToTop');
+      if (!backToTopButton) return;
+      backToTopButton.classList.toggle('is-visible', getScrollTop() > 240);
+    }
+    function updateActiveNav(activeId) {
+      document.querySelectorAll('.toc-link').forEach(link => {
+        link.classList.toggle('is-active', link.getAttribute('href') === '#' + activeId);
+      });
+    }
+    function setModuleExpand(moduleKey, expand) {
+      moduleStates[moduleKey] = expand;
+      const moduleElement = document.querySelector('[data-module-key="' + moduleKey + '"]');
+      if (!moduleElement) return;
+      moduleElement.classList.toggle('is-collapsed', !expand);
+    }
+    function toggleModule(moduleKey) {
+      setModuleExpand(moduleKey, !moduleStates[moduleKey]);
+    }
+    function toggleAllModules(expand) {
+      Object.keys(moduleStates).forEach(moduleKey => setModuleExpand(moduleKey, expand));
+    }
+    function clearHighlights() {
+      document.querySelectorAll('.toc-link').forEach(link => {
+        link.innerHTML = link.dataset.name || link.textContent;
+      });
+    }
+    function escapeRegExp(text) {
+      return text.split('').map(char => ('\\^$.*+?()[]{}|-/'.includes(char) ? '\\' + char : char)).join('');
+    }
+    function updateSearchMeta(text) {
+      document.getElementById('searchMeta').textContent = text;
+    }
+    function filterApis() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+      const noResults = document.getElementById('noResults');
+      let matchCount = 0;
+      clearHighlights();
+      document.querySelectorAll('.toc-module').forEach(moduleElement => {
+        const moduleKey = moduleElement.dataset.moduleKey;
+        let moduleHasMatch = false;
+        moduleElement.querySelectorAll('.toc-api-item').forEach(item => {
+          const apiId = item.dataset.apiId;
+          const api = apiDataMap[apiId];
+          const matched = !searchTerm || api.nameLower.includes(searchTerm) || api.funcLower.includes(searchTerm) || api.descriptionLower.includes(searchTerm);
+          item.style.display = matched ? '' : 'none';
+          if (matched) {
+            moduleHasMatch = true;
+            matchCount += 1;
+            if (searchTerm) {
+              const link = item.querySelector('.toc-link');
+              const regex = new RegExp('(' + escapeRegExp(searchTerm) + ')', 'ig');
+              link.innerHTML = (link.dataset.name || '').replace(regex, '<span class="highlight">$1</span>');
             }
-            let hasResults = false;
-            document.querySelectorAll('.api-list li').forEach(li => { li.style.display = 'none'; });
-            apiData.forEach(api => {
-                const apiName = api.name.toLowerCase();
-                const apiDesc = api.description.toLowerCase();
-                if (apiName.includes(searchTerm) || apiDesc.includes(searchTerm)) {
-                    const apiLink = document.querySelector('a[href="#api-' + api.id + '"]');
-                    if (apiLink) {
-
-                        const li = apiLink.closest('li');
-                        li.style.display = '';
-                        const originalText = api.name;
-                        const escapedTerm = searchTerm.replace(/[.*+?^$\\{}()|[\]\\]/g, '\\$&');
-                        const regex = new RegExp('(' + escapedTerm + ')', 'gi');
-                        apiLink.innerHTML = originalText.replace(regex, '<span class="highlight">$1</span>');
-                        const moduleElement = li.closest('.module-item');
-                        const moduleName = moduleElement.dataset.module;
-                        moduleStates[moduleName] = true;
-                        const apiList = moduleElement.querySelector('.api-list');
-                        const moduleHeader = moduleElement.querySelector('.module-header');
-                        apiList.classList.remove('collapsed');
-                        moduleHeader.classList.remove('collapsed');
-                        hasResults = true;
-                    }
-                }
-            });
-            document.querySelectorAll('.module-item').forEach(module => {
-                const visibleApis = module.querySelectorAll('.api-list li[style=""]');
-                if (visibleApis.length > 0) module.style.display = '';
-                else module.style.display = 'none';
-            });
-            const noResults = document.getElementById('noResults');
-            if (!hasResults) {
-                if (!noResults) {
-                    const noResultsEl = document.createElement('div');
-                    noResultsEl.id = 'noResults';
-                    noResultsEl.className = 'no-results';
-                    noResultsEl.textContent = '未找到匹配的接口';
-                    tocContainer.appendChild(noResultsEl);
-                }
-            } else if (noResults) {
-                noResults.remove();
-            }
+          }
+        });
+        moduleElement.style.display = moduleHasMatch ? '' : 'none';
+        if (searchTerm && moduleHasMatch) {
+          setModuleExpand(moduleKey, true);
         }
-        window.addEventListener('scroll', function() {
-            const sections = document.querySelectorAll('.api-section');
-            let currentSection = '';
-            sections.forEach(section => {
-                const sectionTop = section.offsetTop - 100;
-                if (window.scrollY >= sectionTop) currentSection = section.getAttribute('id');
-            });
-            updateActiveNav(currentSection);
+        if (!searchTerm) {
+          setModuleExpand(moduleKey, true);
+        }
+      });
+      noResults.style.display = matchCount > 0 || !searchTerm ? 'none' : 'block';
+      updateSearchMeta(searchTerm ? ('匹配 ' + matchCount + ' 个接口') : '支持按名称、函数标识或说明搜索');
+    }
+    function handlePageScroll() {
+      const sections = document.querySelectorAll('.api-section');
+      let currentSection = '';
+      const scrollTop = getScrollTop();
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 120;
+        if (scrollTop >= sectionTop) {
+          currentSection = section.getAttribute('id');
+        }
+      });
+      if (currentSection) {
+        updateActiveNav(currentSection);
+      }
+      updateBackToTop();
+    }
+    window.addEventListener('scroll', handlePageScroll, { passive: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.toc-link').forEach(link => {
+        link.addEventListener('click', event => {
+          event.preventDefault();
+          scrollToSection(link.getAttribute('href').substring(1));
         });
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.api-list a').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('href').substring(1);
-                    scrollToSection(targetId);
-                });
-            });
-            document.querySelectorAll('.module-header').forEach(header => {
-                const moduleName = header.closest('.module-item').dataset.module;
-                header.addEventListener('click', function(e) {
-                    if (e.target.classList.contains('toggle-icon')) return;
-                    toggleModule(moduleName);
-                });
-            });
-            const sections = document.querySelectorAll('.api-section');
-            if (sections.length > 0) updateActiveNav(sections[0].getAttribute('id'));
-            const tocHeader = document.querySelector('.sidebar h2');
-            const controls = document.createElement('div');
-            controls.style.marginBottom = '10px';
-            controls.innerHTML = '<button onclick="toggleAllModules(true)" style="font-size:12px;padding:4px 8px;margin-right:5px;">展开全部</button><button onclick="toggleAllModules(false)" style="font-size:12px;padding:4px 8px;">折叠全部</button>';
-            tocHeader.parentNode.insertBefore(controls, tocHeader.nextSibling);
-
-        });
-    <\/script>
+      });
+      document.querySelectorAll('.toc-module__header').forEach(header => {
+        header.addEventListener('click', () => toggleModule(header.closest('.toc-module').dataset.moduleKey));
+      });
+      const backToTopButton = document.getElementById('backToTop');
+      if (backToTopButton) {
+        backToTopButton.addEventListener('click', scrollToTop);
+      }
+      const firstSection = document.querySelector('.api-section');
+      if (firstSection) {
+        updateActiveNav(firstSection.getAttribute('id'));
+      }
+      updateBackToTop();
+      handlePageScroll();
+    });
+  <\/script>
 </body>
 </html>
       `;
     },
-    generateTOC(groupedApis) {
+    generateTOC(moduleEntries) {
       let tocHTML = '';
       let apiIndex = 0;
-      Object.keys(groupedApis).forEach(moduleName => {
-        const moduleApis = groupedApis[moduleName];
+      moduleEntries.forEach(module => {
         tocHTML += `
-      <li class="module-item" data-module="${moduleName}">
-        <div class="module-header">
-          <span class="toggle-icon">▼</span>
-          <span class="module-name">${moduleName}</span>
-          <span class="module-count">${moduleApis.length}</span>
+      <li class="toc-module" data-module-key="${module.key}">
+        <div class="toc-module__header">
+          <span class="toc-toggle">▼</span>
+          <span class="toc-module__name">${this.escapeHtml(module.name)}</span>
+          <span class="toc-module__count">${module.apis.length}</span>
         </div>
-        <ul class="api-list">
+        <ul class="toc-api-list">
     `;
-        moduleApis.forEach(api => {
+        module.apis.forEach(api => {
           tocHTML += `
-        <li>
-          <a href="#api-${apiIndex}" title="${api.description || ''}">
-            ${api.name}
-          </a>
-        </li>
+          <li class="toc-api-item" data-api-id="api-${apiIndex}">
+            <a
+              class="toc-link"
+              data-api-id="api-${apiIndex}"
+              data-name="${this.escapeHtml(api.name || '')}"
+              href="#api-${apiIndex}"
+              title="${this.escapeHtml(api.description || '')}"
+            >${this.escapeHtml(api.name || '')}</a>
+          </li>
       `;
-          apiIndex++;
+          apiIndex += 1;
         });
         tocHTML += `
         </ul>
@@ -1004,58 +1353,87 @@ export default {
         ];
         responseParamsTable = this.generateParamsTable(responseParams, false);
       }
+      const permissionLabel = doc.sign === 1 ? 'MD5签名' : doc.sign === 2 ? 'SHA256签名' : '开放接口';
+      const permissionClass = doc.sign === 0 ? 'status-pill status-pill--success' : 'status-pill status-pill--warning';
+      const signContent = doc.sign === 1
+        ? 'sign = MD5($TOKEN$ + unixtimestamp) + unixtimestamp'
+        : doc.sign === 2
+          ? 'sign = SHA256($TOKEN$ + unixtimestamp + nonce) + unixtimestamp + nonce'
+          : '';
       const basicInfo = [
         { label: '应用标识', value: doc.app },
         { label: '函数标识', value: doc.func },
         { label: '函数名称', value: doc.name },
-        { label: '调用权限', value: doc.sign === 1 ? "MD5签名" : doc.sign === 2 ? "SHA256签名" : "开放" },
+        { label: '调用权限', value: permissionLabel },
         { label: '模块标识', value: doc.service },
         { label: '模块名称', value: doc.serviceName }
       ];
-      const basicInfoHTML = basicInfo.map(item => `<div class="info-item"><span class="info-label">${item.label}：</span><span>${item.value || ''}</span></div>`).join('');
-      const apiUrl1 = this.generateApiUrl(doc, true);
-      const apiUrl2 = this.generateApiUrl(doc, false);
+      const basicInfoHTML = basicInfo.map(item => `
+        <div class="info-item">
+          <div class="info-item__label">${this.escapeHtml(item.label)}</div>
+          <div class="info-item__value mono-text">${this.escapeHtml(item.value || '')}</div>
+        </div>
+      `).join('');
+      const localUrl = this.generateApiUrl(doc, true);
       return `
-    <div class="api-section" id="api-${index}">
-        <h1>${doc.name}</h1>
-        <p><strong>接口说明：</strong><span style="color: #7d8080">${doc.description || ''}</span></p>
-        <div class="divider"></div>
-        <h2>基本信息</h2>
-        <div class="basic-info">${basicInfoHTML}</div>
-        <div class="divider"></div>
-        <h2>请求地址</h2>
-        <p><strong>Local:</strong> <a href="${apiUrl1}" target="_blank">${apiUrl1}</a></p>
-        <p><strong>Network:</strong> <a href="${apiUrl2}" target="_blank">${apiUrl2}</a></p>
-        <div class="divider"></div>
-        <h2>请求参数</h2>
+    <article class="panel-card api-section" id="api-${index}">
+      <div class="panel-header">
+        <div class="panel-header__main">
+          <div class="panel-title">${this.escapeHtml(doc.name || '')}</div>
+          <div class="panel-subtitle">${this.escapeHtml(doc.description || '暂无接口说明。')}</div>
+        </div>
+        <div class="panel-header__actions">
+          <span class="${permissionClass}">${permissionLabel}</span>
+        </div>
+      </div>
+      <div class="info-grid">
+        ${basicInfoHTML}
+      </div>
+      <div class="section-block">
+        <div class="section-caption">请求地址</div>
+        <div class="url-card mono-text">
+          <div><span class="muted-text">Local：</span><a href="${this.escapeHtml(localUrl)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(localUrl)}</a></div>
+        </div>
+      </div>
+      ${signContent ? `
+      <div class="section-block">
+        <div class="section-caption">签名方式</div>
+        <div class="sign-card mono-text">${this.escapeHtml(signContent)}</div>
+      </div>` : ''}
+      <div class="section-block">
+        <div class="section-caption">请求参数</div>
         ${requestParamsTable}
-        <div class="divider"></div>
-        <h2>返回参数</h2>
-        ${responseParamsTable}
-    </div>
+      </div>
+      <div class="section-block">
+        <div class="section-caption">返回参数</div>
+        ${responseParamsTable || '<div class="empty-state">该接口暂无返回参数说明</div>'}
+      </div>
+    </article>
   `;
     },
     generateParamsTable(params, isRequest) {
       if (!params || params.length === 0) {
-        return '<p>无参数</p>';
+        return '<div class="empty-state">无参数</div>';
       }
       const flatParams = this.flattenParams(params);
       const headers = isRequest ? ['字段', '传参方式', '类型', '示例', '描述'] : ['字段', '类型', '示例', '描述'];
-      const headerHTML = headers.map(header => `<th>${header}</th>`).join('');
+      const headerHTML = headers.map(header => `<th>${this.escapeHtml(header)}</th>`).join('');
       const rowsHTML = flatParams.map(param => {
-        const example = param.example === null ? '' : (typeof param.example === 'object' ? JSON.stringify(param.example, null, 2) : param.example);
+        const example = param.example === null || param.example === undefined
+          ? ''
+          : (typeof param.example === 'object' ? JSON.stringify(param.example, null, 2) : String(param.example));
         return `
           <tr>
-            <td>${this.nameFormatter(param)}</td>
-            ${isRequest ? `<td>${this.useFormatter(param)}</td>` : ''}
-            <td>${this.typeFormatter(param)}</td>
-            <td><code>${example || ''}</code></td>
-            <td>${param.desc || ''}</td>
+            <td><span class="param-name" style="padding-left: ${param.level * 16}px">${this.escapeHtml(this.nameFormatter(param) || '')}</span></td>
+            ${isRequest ? `<td>${this.escapeHtml(this.useFormatter(param) || '')}</td>` : ''}
+            <td>${this.escapeHtml(this.typeFormatter(param) || '')}</td>
+            <td><code>${this.escapeHtml(example)}</code></td>
+            <td>${this.escapeHtml(param.desc || '')}</td>
           </tr>
         `;
       }).join('');
       return `
-        <table>
+        <table class="doc-table">
           <thead>
             <tr>${headerHTML}</tr>
           </thead>
@@ -1063,17 +1441,24 @@ export default {
         </table>
       `;
     },
-    flattenParams(params, level = 0, prefix = '') {
+    escapeHtml(value) {
+      return String(value === undefined || value === null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    },
+    flattenParams(params, level = 0) {
       let result = [];
       params.forEach(param => {
         const flatParam = {
           ...param,
-          name: prefix + param.name,
           level: level
         };
         result.push(flatParam);
         if (param.children && param.children.length > 0) {
-          result = result.concat(this.flattenParams(param.children, level + 1, prefix + '&nbsp;&nbsp;&nbsp;&nbsp;'));
+          result = result.concat(this.flattenParams(param.children, level + 1));
         }
       });
       return result;

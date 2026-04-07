@@ -3,30 +3,12 @@
     <div class="page-header">
       <div class="page-header__main">
         <div class="page-header__title">应用拓扑</div>
-        <div class="page-header__desc">查看全局应用节点、连接关系与运行状态，支持拖拽聚焦、悬浮查看资源信息和空白区域取消高亮。</div>
       </div>
       <div class="page-header__actions">
         <span class="page-header__hint">{{ lastUpdatedText }}</span>
         <el-button size="small" type="primary" icon="el-icon-refresh-right" @click="fetchTopology">刷新拓扑视图</el-button>
       </div>
     </div>
-
-    <div class="summary-grid topology-summary">
-
-        <div v-for="item in summaryCards" :key="item.label" class="summary-item">
-          <div class="summary-item__label">{{ item.label }}</div>
-          <div class="summary-item__value">{{ item.value }}</div>
-          <div class="summary-item__meta">{{ item.meta }}</div>
-        </div>
-      </div>
-
-    <div class="legend-list">
-      <div v-for="item in legendItems" :key="item.label" class="legend-item">
-        <span class="legend-item__dot" :style="{ background: item.color }"></span>
-        <span>{{ item.label }}</span>
-      </div>
-    </div>
-
     <el-card shadow="never" class="panel-card topology-card">
 
       <div class="panel-header">

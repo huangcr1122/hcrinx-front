@@ -18,7 +18,7 @@
       <div class="panel-subtitle">当前已加载 {{ logData.length }} 条系统日志，继续下拉可加载更多内容。</div>
 
       <ul v-infinite-scroll="load" class="log-stream log-page__stream" :infinite-scroll-disabled="loading">
-        <li v-for="(item,index) in logData" :key="index + '' + item.ts" class="log-stream__item log-page__item" :style="{color: levelColor[item.level]}" @click="showLogDetail(item)">
+        <li v-for="(item,index) in logData" :key="index + '' + item.ts" class="log-stream__item log-page__item" :style="{color: levelColor[item.level]}">
           <span class="log-stream__meta log-page__meta">{{ '【' + item.app + (item.app === 'data' ? '' : '-' + item.appip) + '】' + item.ts }}</span>
           <span class="log-page__content" v-html="highlightText('【' + logLevel[item.level] + '】' + item.clazz + '【' + item.method + ':' + item.line + '】 ' + item.content)"></span>
         </li>
@@ -26,42 +26,6 @@
 
     </el-card>
 
-    <el-dialog :visible.sync="detailVisible" title="日志详情" width="720px" custom-class="compact-dialog">
-      <div v-if="selectedLog" class="log-detail">
-        <div class="log-detail__row">
-          <span class="log-detail__label">应用：</span>
-          <span class="log-detail__value">{{ selectedLog.app }}</span>
-        </div>
-        <div class="log-detail__row">
-          <span class="log-detail__label">IP：</span>
-          <span class="log-detail__value">{{ selectedLog.appip }}</span>
-        </div>
-        <div class="log-detail__row">
-          <span class="log-detail__label">时间：</span>
-          <span class="log-detail__value">{{ selectedLog.ts }}</span>
-        </div>
-        <div class="log-detail__row">
-          <span class="log-detail__label">级别：</span>
-          <el-tag :type="levelTagType[selectedLog.level]" size="small">{{ logLevel[selectedLog.level] }}</el-tag>
-        </div>
-        <div class="log-detail__row">
-          <span class="log-detail__label">类名：</span>
-          <span class="log-detail__value">{{ selectedLog.clazz }}</span>
-        </div>
-        <div class="log-detail__row">
-          <span class="log-detail__label">方法：</span>
-          <span class="log-detail__value">{{ selectedLog.method }}</span>
-        </div>
-        <div class="log-detail__row">
-          <span class="log-detail__label">行号：</span>
-          <span class="log-detail__value">{{ selectedLog.line }}</span>
-        </div>
-        <div class="log-detail__row">
-          <span class="log-detail__label">内容：</span>
-          <pre class="log-detail__content" v-html="highlightText(selectedLog.content)"></pre>
-        </div>
-      </div>
-    </el-dialog>
   </div>
 </template>
 

@@ -46,7 +46,19 @@ export const constantRoutes = [{
     meta: {title: '系统日志', icon: 'syslog'}
   }]
 }, {
+  path: '/nginx',
+  component: Layout,
+  hidden: true,
+  children: [{
+    path: '',
+    name: 'Nginx入口大盘',
+    component: () => import('@/views/nginx/index'),
+    meta: {title: 'Nginx', icon: 'table'}
+  }]
+}, {
+
   path: '/app',
+
   component: Layout,
   role: 3,
   place: 1,
@@ -71,7 +83,7 @@ export const constantRoutes = [{
   path: '/session',
   component: Layout,
   role: 2,
-  place: 2,
+  place: 1,
   icon: 'el-icon-chat-line-square',
   children: [{
     path: '',
@@ -83,7 +95,7 @@ export const constantRoutes = [{
   path: '/cache',
   component: Layout,
   role: 2,
-  place: 2,
+  place: 1,
   icon: 'el-icon-coin',
   children: [{
     path: '',
@@ -106,7 +118,7 @@ export const constantRoutes = [{
   path: '/signature',
   component: Layout,
   role: 2,
-  place: 2,
+  place: 1,
   icon: 'el-icon-key',
   children: [{
     path: '',
@@ -129,7 +141,7 @@ export const constantRoutes = [{
   path: '/applog',
   component: Layout,
   role: 2,
-  place: 2,
+  place: 1,
   icon: 'el-icon-document',
   children: [{
     path: '',

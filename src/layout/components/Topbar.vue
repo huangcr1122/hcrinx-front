@@ -50,7 +50,13 @@
               <el-link :underline="false"><i class="el-icon-s-order iconBtn"></i></el-link>
             </el-tooltip>
           </router-link>
+          <router-link class="icon-link" to="/nginx">
+            <el-tooltip :open-delay="800" class="item" content="Nginx入口大盘" effect="dark" placement="bottom">
+              <el-link :underline="false"><i class="el-icon-data-analysis iconBtn"></i></el-link>
+            </el-tooltip>
+          </router-link>
         </div>
+
 
         <div v-if="showApp" class="quick-actions">
           <div v-for="item in routes" :key="item.path">
@@ -124,8 +130,9 @@ export default {
       return "";
     },
     showApp() {
-      return ["/", "/home", "/user", "/topology", "/syslog"].indexOf(this.activeMenu) === -1;
+      return ["/", "/home", "/user", "/topology", "/syslog", "/nginx"].indexOf(this.activeMenu) === -1;
     },
+
     envLabel() {
       return (this.env || "prod").toUpperCase();
     },

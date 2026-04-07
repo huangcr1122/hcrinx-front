@@ -271,14 +271,28 @@
       </span>
     </el-dialog>
 
-    <el-drawer :with-header="false" :visible.sync="showLog" direction="ltr" size="74%">
+    <el-drawer :with-header="false" :visible.sync="showLog" direction="ltr" size="74%" custom-class="rpc-log-drawer">
 
-      <div class="log-stream rpc-log-page__drawer-log" v-infinite-scroll="load" :infinite-scroll-disabled="rpcLogLoading || rpcLogFinished || !showLog">
-        <div v-if="rpcLog.length === 0 && !rpcLogLoading" class="muted-text">暂无日志，请继续滚动或稍后重试。</div>
-        <div v-for="(item, index) in rpcLog" :key="index + '' + item.ts" class="log-stream__item" :style="{ color: levelColor[item.level] }">
-          <span class="log-stream__meta">{{ item.ts }}</span>
-          {{ '【' + logLevel[item.level] + '】' + item.clazz + '【' + item.method + ':' + item.line + '】 ' + item.content }}
+      <div class="rpc-log-page__drawer-header">
+        <span class="rpc-log-page__drawer-title">函数日志</span>
+        <el-tag size="small" type="info">共 {{ rpcLog.length }} 条</el-tag>
+      </div>
+
+      <div class="rpc-log-page__drawer-body" v-infinite-scroll="load" :infinite-scroll-disabled="rpcLogLoading || rpcLogFinished || !showLog">
+        <div v-if="rpcLog.length === 0 && !rpcLogLoading" class="muted-text rpc-log-page__drawer-empty">暂无日志，请继续滚动或稍后重试。</div>
+        <div v-for="(item, index) in rpcLog" :key="index + '' + item.ts" class="rpc-log-page__log-row" :class="'rpc-log-page__log-row--' + logLevel[item.level].toLowerCase()">
+          <span class="rpc-log-page__log-linenum">{{ index + 1 }}</span>
+          <div class="rpc-log-page__log-content">
+            <span class="rpc-log-page__log-meta">{{ item.ts }}</span>
+            <span class="rpc-log-page__log-level">{{ logLevel[item.level] }}</span>
+            <span class="rpc-log-page__log-source">{{ item.clazz }}【{{ item.method }}:{{ item.line }}】</span>
+            <span class="rpc-log-page__log-text">{{ item.content }}</span>
+          </div>
         </div>
+        <div v-if="rpcLogLoading && rpcLog.length > 0" class="rpc-log-page__loading-hint">
+          <i class="el-icon-loading"></i> 加载中...
+        </div>
+        <div v-if="rpcLogFinished && rpcLog.length > 0" class="rpc-log-page__loading-hint">已全部加载</div>
       </div>
     </el-drawer>
   </div>
@@ -1010,6 +1024,188 @@ export default {
   min-height: calc(100vh - 12px);
   max-height: calc(100vh - 12px);
   border-radius: 0;
+}
+
+::v-deep .rpc-log-drawer {
+  overflow: hidden;
+
+  .el-drawer__body {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    background: #f8fafc;
+  }
+}
+
+.rpc-log-page__drawer-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.rpc-log-page__drawer-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.rpc-log-page__drawer-body {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 52px);
+  overflow-y: auto;
+  padding: 8px 0;
+  font-size: 12px;
+  line-height: 1.6;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+
+    &:hover {
+      background: #94a3b8;
+    }
+  }
+}
+
+.rpc-log-page__drawer-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #94a3b8 !important;
+  font-size: 13px;
+}
+
+.rpc-log-page__log-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 4px 16px;
+  transition: background-color 0.15s ease;
+  border-left: 2px solid transparent;
+
+  &:hover {
+    background: #f0f9ff;
+
+    .rpc-log-page__log-linenum {
+      color: #64748b;
+      opacity: 1;
+    }
+  }
+
+  // Level-based styles
+  &--trace {
+    .rpc-log-page__log-level { color: #94a3b8; }
+    .rpc-log-page__log-text { color: #94a3b8; }
+  }
+
+  &--debug {
+    .rpc-log-page__log-level { color: #65a30d; }
+    .rpc-log-page__log-text { color: #475569; }
+  }
+
+  &--info {
+    .rpc-log-page__log-level { color: #0284c7; }
+    .rpc-log-page__log-text { color: #334155; }
+  }
+
+  &--warn {
+    .rpc-log-page__log-level { color: #d97706; }
+    .rpc-log-page__log-text { color: #78350f;
+      font-weight: 500;
+    }
+    border-left-color: rgba(217, 119, 6, 0.35);
+    background: rgba(254, 249, 195, 0.35);
+
+    &:hover {
+      background: rgba(254, 249, 195, 0.6);
+    }
+  }
+
+  &--error {
+    .rpc-log-page__log-level { color: #dc2626; }
+    .rpc-log-page__log-text { color: #991b1b;
+      font-weight: 600;
+    }
+    border-left-color: rgba(220, 38, 38, 0.45);
+    background: rgba(254, 202, 202, 0.35);
+
+    &:hover {
+      background: rgba(254, 202, 202, 0.55);
+    }
+  }
+}
+
+.rpc-log-page__log-linenum {
+  flex: 0 0 42px;
+  min-width: 42px;
+  text-align: right;
+  padding-right: 14px;
+  margin-right: 4px;
+  font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #cbd5e1;
+  user-select: none;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.rpc-log-page__log-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.rpc-log-page__log-meta {
+  flex-shrink: 0;
+  color: #94a3b8;
+  font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+  font-size: 11px;
+}
+
+.rpc-log-page__log-level {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.rpc-log-page__log-source {
+  flex-shrink: 0;
+  color: #64748b;
+  font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+  font-size: 11px;
+}
+
+.rpc-log-page__log-text {
+  flex: 1 1 auto;
+  word-break: break-all;
+  white-space: pre-wrap;
+  font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.rpc-log-page__loading-hint {
+  text-align: center;
+  padding: 10px 0;
+  color: #94a3b8;
+  font-size: 12px;
 }
 
 @media (max-width: 1200px) {
