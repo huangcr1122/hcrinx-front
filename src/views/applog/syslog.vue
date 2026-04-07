@@ -18,7 +18,7 @@
       <div class="panel-subtitle">当前已加载 {{ logData.length }} 条系统日志，继续下拉可加载更多内容。</div>
 
       <ul v-infinite-scroll="load" class="log-stream log-page__stream" :infinite-scroll-disabled="loading">
-        <li v-for="(item,index) in logData" :key="index + '' + item.ts" class="log-stream__item log-page__item" :style="{color: levelColor[item.level]}">
+        <li v-for="(item,index) in logData" :key="index + '' + item.ts" :class="['log-stream__item', 'log-page__item', 'log-page__item--level' + item.level]">
           <span class="log-stream__meta log-page__meta">{{ '【' + item.app + (item.app === 'data' ? '' : '-' + item.appip) + '】' + item.ts }}</span>
           <span class="log-page__content" v-html="highlightText('【' + logLevel[item.level] + '】' + item.clazz + '【' + item.method + ':' + item.line + '】 ' + item.content)"></span>
         </li>
@@ -398,7 +398,7 @@ export default {
   cursor: pointer;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.02);
+    background: #e8f4fd;
   }
 }
 

@@ -112,16 +112,15 @@
         >
 
 
-        <el-table-column label="RID" prop="rid" width="126">
+        <el-table-column label="RID" prop="rid" width="100">
           <template slot-scope="scope">
             <div class="rpc-log-page__rid-cell">
               <span class="mono-text">{{ scope.row.rid.replace(/-/g, '') }}</span>
-              <el-button type="text" icon="el-icon-document-copy" @click="copyText(scope.row.rid, 'RID')" />
             </div>
           </template>
         </el-table-column>
         <el-table-column label="时间(毫秒)">
-          <el-table-column label="时间戳" prop="ts" width="96" />
+          <el-table-column label="时间戳" prop="ts" width="92" />
           <el-table-column label="时延" prop="costtime" width="58" />
         </el-table-column>
         <el-table-column label="HTTP网关">
@@ -153,7 +152,7 @@
             </template>
           </el-table-column>
         </el-table-column>
-        <el-table-column label="调用方" width="120">
+        <el-table-column label="调用方" width="110">
           <template slot-scope="scope">
             <div class="rpc-log-page__caller-cell">
               <div>{{ formatCaller(scope.row.fapp) }}</div>
@@ -1033,7 +1032,7 @@ export default {
     display: flex;
     flex-direction: column;
     padding: 0;
-    background: #f8fafc;
+    background: #ffffff;
   }
 }
 
@@ -1043,14 +1042,14 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  background: #f5f5f5;
+  border-bottom: 1px solid #d4d4d4;
 }
 
 .rpc-log-page__drawer-title {
   font-size: 15px;
   font-weight: 700;
-  color: #1e293b;
+  color: #000000;
 }
 
 .rpc-log-page__drawer-body {
@@ -1058,24 +1057,25 @@ export default {
   min-height: 0;
   max-height: calc(100vh - 52px);
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 0;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.4;
+  background: #ffffff;
 
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
   }
 
   &::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: #f5f5f5;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
+    background: #c0c0c0;
+    border-radius: 4px;
 
     &:hover {
-      background: #94a3b8;
+      background: #a0a0a0;
     }
   }
 }
@@ -1083,82 +1083,67 @@ export default {
 .rpc-log-page__drawer-empty {
   text-align: center;
   padding: 60px 20px;
-  color: #94a3b8 !important;
+  color: #808080 !important;
   font-size: 13px;
 }
 
 .rpc-log-page__log-row {
   display: flex;
   align-items: flex-start;
-  padding: 4px 16px;
-  transition: background-color 0.15s ease;
+  padding: 0 16px 0 0;
+  transition: background-color 0.1s ease;
   border-left: 2px solid transparent;
 
   &:hover {
-    background: #f0f9ff;
+    background: #e8f4fd;
 
     .rpc-log-page__log-linenum {
-      color: #64748b;
-      opacity: 1;
+      color: #787878;
     }
   }
 
-  // Level-based styles
   &--trace {
-    .rpc-log-page__log-level { color: #94a3b8; }
-    .rpc-log-page__log-text { color: #94a3b8; }
+    .rpc-log-page__log-level { color: #808080; }
+    .rpc-log-page__log-text { color: #808080; }
   }
 
   &--debug {
-    .rpc-log-page__log-level { color: #65a30d; }
-    .rpc-log-page__log-text { color: #475569; }
+    .rpc-log-page__log-level { color: #000080; }
+    .rpc-log-page__log-text { color: #000000; }
   }
 
   &--info {
-    .rpc-log-page__log-level { color: #0284c7; }
-    .rpc-log-page__log-text { color: #334155; }
+    .rpc-log-page__log-level { color: #000000; }
+    .rpc-log-page__log-text { color: #000000; }
   }
 
   &--warn {
-    .rpc-log-page__log-level { color: #d97706; }
-    .rpc-log-page__log-text { color: #78350f;
-      font-weight: 500;
-    }
-    border-left-color: rgba(217, 119, 6, 0.35);
-    background: rgba(254, 249, 195, 0.35);
-
-    &:hover {
-      background: rgba(254, 249, 195, 0.6);
-    }
+    .rpc-log-page__log-level { color: #8b8b00; }
+    .rpc-log-page__log-text { color: #8b8b00; }
   }
 
   &--error {
-    .rpc-log-page__log-level { color: #dc2626; }
-    .rpc-log-page__log-text { color: #991b1b;
-      font-weight: 600;
-    }
-    border-left-color: rgba(220, 38, 38, 0.45);
-    background: rgba(254, 202, 202, 0.35);
-
-    &:hover {
-      background: rgba(254, 202, 202, 0.55);
+    .rpc-log-page__log-level { color: #ff0000; }
+    .rpc-log-page__log-text { color: #ff0000;
+      font-weight: 500;
     }
   }
 }
 
 .rpc-log-page__log-linenum {
-  flex: 0 0 42px;
-  min-width: 42px;
+  flex: 0 0 48px;
+  min-width: 48px;
   text-align: right;
-  padding-right: 14px;
+  padding-right: 12px;
   margin-right: 4px;
+  background: #f5f5f5;
+  border-right: 1px solid #e0e0e0;
   font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
   font-size: 11px;
-  line-height: 1.7;
-  color: #cbd5e1;
+  line-height: 1.5;
+  color: #8c8c8c;
   user-select: none;
-  opacity: 0.6;
-  transition: all 0.15s ease;
+  transition: color 0.1s ease;
 }
 
 .rpc-log-page__log-content {
@@ -1168,11 +1153,12 @@ export default {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px;
+  padding-left: 8px;
 }
 
 .rpc-log-page__log-meta {
   flex-shrink: 0;
-  color: #94a3b8;
+  color: #008000;
   font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
   font-size: 11px;
 }
@@ -1182,12 +1168,12 @@ export default {
   font-weight: 700;
   font-size: 11px;
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 .rpc-log-page__log-source {
   flex-shrink: 0;
-  color: #64748b;
+  color: #008000;
   font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
   font-size: 11px;
 }
@@ -1204,7 +1190,7 @@ export default {
 .rpc-log-page__loading-hint {
   text-align: center;
   padding: 10px 0;
-  color: #94a3b8;
+  color: #808080;
   font-size: 12px;
 }
 

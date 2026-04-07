@@ -1,29 +1,11 @@
 <template>
   <div class="signature-page page-shell">
-    <div class="page-header">
-      <div class="page-header__main">
-        <div class="page-header__title">签名令牌中心</div>
-        <div class="page-header__desc">统一维护接口签名令牌、算法和有效期，支持快速生成签名与查看私钥。</div>
-      </div>
-    </div>
-    <div class="summary-grid">
-      <div v-for="item in summaryCards" :key="item.key" class="summary-item">
-        <div class="summary-item__label">{{ item.label }}</div>
-        <div class="summary-item__value">{{ item.value }}</div>
-      </div>
-    </div>
-
     <el-card shadow="never" class="panel-card signature-page__card">
       <div class="page-toolbar">
         <div class="page-toolbar__group page-toolbar__grow">
           <el-input v-model="search" clearable size="small" class="signature-page__search" placeholder="搜索函数名 / 创建人 / 说明">
             <i slot="prefix" class="el-input__icon el-icon-search"></i>
           </el-input>
-          <el-radio-group v-model="algorithmFilter" size="small">
-            <el-radio-button label="all">全部算法</el-radio-button>
-            <el-radio-button label="1">MD5</el-radio-button>
-            <el-radio-button label="2">SHA-256</el-radio-button>
-          </el-radio-group>
         </div>
         <div class="page-toolbar__group">
           <el-button size="small" icon="el-icon-info" @click="algorithmDescription">算法说明</el-button>

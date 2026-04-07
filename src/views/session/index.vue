@@ -53,9 +53,7 @@
           </div>
         </div>
         <div v-if="chooseSession!=='' && chooseSession.ttl" class="detail-card__ttl">
-          <el-statistic :value="new Date(chooseSession.ttl)" format="HH:mm:ss" time-indices>
-            <template slot="prefix">会话有效期：</template>
-          </el-statistic>
+          <span class="ttl-label">会话有效期：</span><span class="ttl-value">{{ ttlText }}</span>
         </div>
 
         <div v-if="chooseSessionId!==''" class="json-wrapper">
@@ -91,7 +89,12 @@ export default {
       visible: false,
       isChange: true,
       isErr: false,
+      ttlTimer: null,
+      ttlText: '',
     };
+  },
+  beforeDestroy() {
+    clearInterval(this.ttlTimer);
   },
   mounted() {
     if (!this.app) {
@@ -101,14 +104,22 @@ export default {
     this.getSessionList0();
   },
   methods: {
+    formatTTL(ttl) {
+      const remain = Math.max(0, Math.floor((ttl - Date.now()) / 1000));
+      const h = String(Math.floor(remain / 3600)).padStart(2, '0');
+      const m = String(Math.floor((remain % 3600) / 60)).padStart(2, '0');
+      const s = String(remain % 60).padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    },
     updateSession() {
       if (this.isErr) {
         this.$message.error("json格式错误");
         return;
       }
       request({
+        method: "post",
         url: "/admin/session/updateSession",
-        params: {
+        data: {
           sessionid: this.chooseSessionId,
           json: JSON.stringify(this.jsonData),
           expire: Math.floor((this.chooseSession.ttl - Date.now()) / 1000)
@@ -121,8 +132,9 @@ export default {
     },
     delSession() {
       request({
+        method: "post",
         url: "/admin/session/updateSession",
-        params: {
+        data: {
           sessionid: this.chooseSessionId,
           json: '{}',
           expire: -1
@@ -154,13 +166,22 @@ export default {
     },
     showSession() {
       this.isChange = true;
+      clearInterval(this.ttlTimer);
       if (this.chooseSessionId === '') {
         this.chooseSession = {};
         this.jsonData = {};
+        this.ttlText = '';
       } else {
         this.chooseSession = this.sessionList.find(x => x.key === this.chooseSessionId) || {};
         this.jsonData = this.chooseSession.value ? JSON.parse(this.chooseSession.value) : {};
+        if (this.chooseSession.ttl) {
+          this.updateTTL();
+          this.ttlTimer = setInterval(this.updateTTL, 1000);
+        }
       }
+    },
+    updateTTL() {
+      this.ttlText = this.formatTTL(this.chooseSession.ttl);
     },
     getSessionList0() {
       this.cursor = '';
@@ -195,7 +216,31 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.session-title {
+.page-shell {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 66px);
+}
+
+.split-panel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.panel-card {
+  display: flex;
+  flex-direction: column;
+  &:first-child {
+    flex: 0 0 33%;
+    margin-right: 5px;
+  }
+  ::v-deep .el-card__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
   color: #166534;
   white-space: nowrap;
   overflow: hidden;
@@ -205,6 +250,8 @@ export default {
 }
 
 .list-scroll {
+  flex: 1;
+  overflow-y: auto;
   ::v-deep .el-collapse-item {
     border-radius: 8px;
     margin-bottom: 4px;
@@ -228,12 +275,12 @@ export default {
       &.is-active {
         background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
         box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
-        
+
         .session-title {
           color: #047857;
           font-weight: 600;
         }
-        
+
         &::after {
           content: '';
           position: absolute;
@@ -266,7 +313,7 @@ export default {
     }
 
     &__wrap {
-      border: none;
+      display: none;
     }
 
     &__content {
@@ -279,7 +326,7 @@ export default {
 }
 
 .detail-card {
-  min-height: 560px;
+  flex: 1;
 }
 
 .detail-card__subtitle {
@@ -292,11 +339,24 @@ export default {
 .detail-card__ttl {
   display: flex;
   justify-content: center;
+  align-items: center;
   margin-bottom: 12px;
   padding: 8px 16px;
   background: #f0f9ff;
   border-radius: 8px;
   border: 1px solid #e0f2fe;
+}
+
+.ttl-label {
+  color: #606266;
+  font-size: 14px;
+}
+
+.ttl-value {
+  color: #409eff;
+  font-weight: 600;
+  font-size: 15px;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 .detail-card__ttl ::v-deep .el-statistic__content {

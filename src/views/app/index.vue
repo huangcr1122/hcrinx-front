@@ -9,7 +9,7 @@
         <div v-if="canManage" class="panel-header__actions">
           <el-button size="small" type="primary" icon="el-icon-edit-outline" @click="getAppInfo">编辑信息</el-button>
           <el-button size="small" type="success" icon="el-icon-user-solid" @click="getAppAcc">权限成员</el-button>
-          <el-button size="small" type="warning" icon="el-icon-monitor" @click="getAppHost">部署主机</el-button>
+          <el-button size="small" type="warning" icon="el-icon-monitor" @click="getAppHost(true)">部署主机</el-button>
         </div>
       </div>
 
@@ -828,13 +828,16 @@ export default {
         }
       });
     },
-    getAppHost() {
+    getAppHost(showDialog) {
       request({
         url: "/admin/home/getAppHost",
         params: {}
       }).then(res => {
         if (res.code === 0) {
           this.app_hosts = res.data;
+          if (showDialog) {
+            this.dialogTableVisible2 = true;
+          }
           this.$nextTick(() => {
             this.renderHostEnvChart();
           });

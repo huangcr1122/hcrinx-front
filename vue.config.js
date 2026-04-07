@@ -6,7 +6,7 @@ function resolve(dir) {
 }
 
 module.exports = {
-  publicPath: "./",
+  publicPath: "/hcfront/",
   outputDir: "dist",
   assetsDir: "static",
   productionSourceMap: false,
@@ -17,11 +17,21 @@ module.exports = {
       warnings: false,
       errors: true,
     },
+    historyApiFallback: {
+      rewrites: [
+        { from: /^\/hcfront\/.*$/, to: '/hcfront/index.html' }
+      ]
+    },
     proxy: {
       '/': {
         target: 'http://10.118.26.59:1215/',//填写后台接口地址
         // target: 'http://10.115.45.137:1215/',//填写后台接口地址
         changeOrigin: true,//设置允许跨域
+        bypass: function(req) {
+          if (req.url.startsWith('/hcfront')) {
+            return req.url;
+          }
+        }
       }
     }
   },

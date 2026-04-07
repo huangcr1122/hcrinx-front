@@ -25,11 +25,11 @@
       <div class="panel-subtitle">当前已加载 {{ logData.length }} 条日志，继续下拉可加载更多内容。</div>
 
       <ul v-infinite-scroll="load" class="log-stream log-page__stream" :infinite-scroll-disabled="loading">
-        <li v-for="(item,index) in logData" :key="index + '' + item.ts" class="log-stream__item log-page__item" :style="{color: levelColor[item.level]}">
+        <li v-for="(item,index) in logData" :key="index + '' + item.ts" :class="['log-stream__item', 'log-page__item', 'log-page__item--level' + item.level]">
           <el-tooltip class="item" effect="dark" :content="'复制：' + item.rid" placement="bottom-start">
-            <el-link v-if="item.rid !== '00000000-0000-0000-0000-000000000000'" :underline="false" class="log-stream__meta log-page__meta" @click.stop="copyRid(item.rid)">{{ item.ts }}</el-link>
+            <el-link v-if="item.rid !== '00000000-0000-0000-0000-000000000000'" :underline="false" class="log-stream__meta log-page__meta" @click.stop="copyRid(item.rid)">{{'【' + item.appip + '】' + item.ts }}</el-link>
           </el-tooltip>
-          <span v-if="item.rid==='00000000-0000-0000-0000-000000000000'" class="log-stream__meta log-page__meta">{{ item.ts }}</span>
+          <span v-if="item.rid==='00000000-0000-0000-0000-000000000000'" class="log-stream__meta log-page__meta">{{'【' + item.appip + '】' + item.ts }}</span>
           <span class="log-page__content" v-html="highlightText('【' + logLevel[item.level] + '】' + item.clazz + '【' + item.method + ':' + item.line + '】 ' + item.content)"></span>
         </li>
       </ul>
@@ -50,7 +50,7 @@ export default {
       app: Cookies.get('app'),
       appInfo: JSON.parse(localStorage.getItem("app") || '{}'),
       logLevel: ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR'],
-      levelColor: ['#94a3b8', '#84cc16', '#38bdf8', '#f59e0b', '#f87171'],
+      levelColor: ['#808080', '#000080', '#000000', '#8b8b00', '#ff0000'],
       levelTagType: ['', '', 'info', 'warning', 'danger'],
       page: 1,
       period: [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 728 * 3600 * 1000), new Date()],
@@ -432,10 +432,14 @@ export default {
 
 .log-page__item {
   cursor: pointer;
+}
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.02);
-  }
+::v-deep .log-page__meta.el-link {
+  color: #008000 !important;
+}
+
+.log-page__item:hover {
+  background: #e8f4fd;
 }
 
 

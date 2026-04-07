@@ -466,8 +466,7 @@ export default {
       return data.name.indexOf(value) !== -1 || data.func.indexOf(value) !== -1;
     },
     apiUrl() {
-      const url = location.href;
-      return url.substring(0, url.indexOf("#")) + this.funcdoc.func;
+      return location.origin + '/' + this.funcdoc.func;
     },
     typeFormatter(index) {
       let arrEndFix = "";
@@ -1465,8 +1464,7 @@ export default {
     },
     generateApiUrl(doc, isLocal) {
       if (isLocal) {
-        const url = window.location.href;
-        return url.substring(0, url.indexOf("#")) + doc.func;
+        return window.location.origin + '/' + doc.func;
       }
       return "https://wxtest.guosen.com.cn/" + doc.func;
     }
