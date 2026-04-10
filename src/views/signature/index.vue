@@ -3,21 +3,23 @@
     <el-card shadow="never" class="panel-card signature-page__card">
       <div class="page-toolbar">
         <div class="page-toolbar__group page-toolbar__grow">
-          <el-input v-model="search" clearable size="small" class="signature-page__search" placeholder="搜索函数名 / 创建人 / 说明">
-            <i slot="prefix" class="el-input__icon el-icon-search"></i>
-          </el-input>
+          <template v-if="moduleOptions.length > 0">
+            <span class="signature-page__module-label">模块</span>
+            <el-button size="mini" @click="moduleFilter = moduleOptions.slice()">全选</el-button>
+            <el-button size="mini" @click="moduleFilter = []">清空</el-button>
+            <el-checkbox-group v-model="moduleFilter" size="mini" class="signature-page__module-group">
+              <el-checkbox-button v-for="item in moduleOptions" :key="item" :label="item">{{ item }}</el-checkbox-button>
+            </el-checkbox-group>
+          </template>
         </div>
         <div class="page-toolbar__group">
           <el-button size="small" icon="el-icon-info" @click="algorithmDescription">算法说明</el-button>
           <el-button size="small" icon="el-icon-refresh-right" @click="getSignList">刷新</el-button>
           <el-button v-if="appInfo.role===1" type="primary" size="small" icon="el-icon-plus" @click="signAddTab">新增令牌</el-button>
+          <el-input v-model="search" clearable size="small" class="signature-page__search" placeholder="搜索函数名 / 创建人 / 说明">
+            <i slot="prefix" class="el-input__icon el-icon-search"></i>
+          </el-input>
         </div>
-      </div>
-
-
-      <div class="page-toolbar signature-page__meta-bar">
-        <span class="section-caption signature-page__meta-text">共 {{ signData.length }} 条令牌，当前展示 {{ filteredSignData.length }} 条</span>
-        <el-button v-if="search || algorithmFilter !== 'all'" type="text" @click="resetFilters">清空筛选</el-button>
       </div>
 
       <el-table v-loading="loading" :data="filteredSignData" border stripe size="mini" row-key="id">
@@ -104,6 +106,7 @@ export default {
       signData: [],
       search: '',
       algorithmFilter: 'all',
+      moduleFilter: [],
       signatureAdd: false,
       signatureEdit: false,
       signatureFunc: '',
@@ -133,8 +136,14 @@ export default {
         const source = [row.func, row.createby, row.description].join(' ').toLowerCase();
         const matchesKeyword = !keyword || source.indexOf(keyword) !== -1;
         const matchesAlgorithm = this.algorithmFilter === 'all' || String(row.algorithm) === this.algorithmFilter;
-        return matchesKeyword && matchesAlgorithm;
+        const rowModule = (row.func || '').split('/')[1] || '';
+        const matchesModule = this.moduleFilter.includes(rowModule);
+        return matchesKeyword && matchesAlgorithm && matchesModule;
       });
+    },
+    moduleOptions() {
+      const modules = [...new Set(this.signData.map(row => (row.func || '').split('/')[1]).filter(Boolean))];
+      return modules.sort();
     },
     summaryCards() {
       return [
@@ -156,6 +165,7 @@ export default {
     resetFilters() {
       this.search = '';
       this.algorithmFilter = 'all';
+      this.moduleFilter = [];
     },
     closeDialog() {
 
@@ -283,6 +293,9 @@ export default {
         params: {},
       }).then((res) => {
         this.signData = res.data || [];
+        if (this.moduleFilter.length === 0) {
+          this.moduleFilter = this.moduleOptions;
+        }
       }).finally(() => {
         this.loading = false;
       });
@@ -320,16 +333,24 @@ export default {
 
 <style lang="scss" scoped>
 .signature-page__search {
-  width: 360px;
-  max-width: 100%;
+  width: 400px;
+  min-width: 400px;
 }
 
-.signature-page__meta-bar {
-  margin: 8px 0 14px;
+.signature-page__module-label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.signature-page__module-group {
+  flex: 0 0 auto;
 }
 
 .signature-page__meta-text {
-  margin-bottom: 0;
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .signature-page__table-actions {
@@ -341,7 +362,8 @@ export default {
 }
 
 .rule-id {
-
   display: inline-flex;
   align-items: center;
-  padding: 4px 12px
+  padding: 4px 12px;
+}
+</style>

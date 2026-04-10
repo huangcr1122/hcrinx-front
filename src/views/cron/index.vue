@@ -1,8 +1,15 @@
 <template>
   <div class="page-shell cron-page">
     <div class="page-toolbar cron-page__toolbar">
+      <template v-if="moduleOptions.length > 0">
+        <span class="cron-page__module-label">模块</span>
+        <el-button size="mini" @click="moduleFilter = moduleOptions.slice()">全选</el-button>
+        <el-button size="mini" @click="moduleFilter = []">清空</el-button>
+        <el-checkbox-group v-model="moduleFilter" size="mini" class="cron-page__module-group">
+          <el-checkbox-button v-for="item in moduleOptions" :key="item" :label="item">{{ item }}</el-checkbox-button>
+        </el-checkbox-group>
+      </template>
       <div class="page-toolbar__group cron-page__toolbar-group">
-        <el-input v-model="search" clearable placeholder="搜索函数名或任务名称" size="small" class="cron-page__search" />
         <el-select v-model="statusFilter" clearable placeholder="状态筛选" size="small" class="cron-page__status-filter">
           <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
@@ -10,6 +17,7 @@
         <el-button size="small" type="primary" icon="el-icon-refresh" @click="refreshTasks">刷新列表</el-button>
         <el-button v-if="canManage" size="small" type="primary" plain icon="el-icon-plus" @click="cronAddTab">新增作业</el-button>
       </div>
+      <el-input v-model="search" clearable placeholder="搜索函数名或任务名称" size="small" class="cron-page__search" />
     </div>
 
     <el-card class="panel-card cron-page__list-card">
@@ -43,15 +51,7 @@
         <el-table-column label="下次执行" width="160">
           <template slot-scope="scope">
             <div v-if="scope.row.status === 1 && scope.row.rid === null" class="cron-page__countdown">
-              <el-statistic
-                :value="new Date(scope.row.next).getTime()"
-                :value-style="{ color: '#16a34a', 'font-size': '14px' }"
-                format="HH:mm:ss"
-
-                size="mini"
-                time-indices
-                @finish="scope.row.rid = ''"
-              />
+              <span :style="{ color: '#16a34a', 'font-size': '14px' }">{{ getCountdown(scope.row) }}</span>
             </div>
             <span v-else-if="scope.row.rid !== null" class="cron-page__running-text"><i class="el-icon-loading"></i> 执行中</span>
             <span v-else class="muted-text">{{ scope.row.next || '-' }}</span>
@@ -238,6 +238,17 @@
             </el-select>
           </div>
         </div>
+
+        <div v-if="futureExecTimes.length > 0" class="cron-page__preview">
+          <div class="panel-title">未来执行预览</div>
+          <div class="panel-subtitle">根据当前规则和周期，接下来 5 次预计执行时间</div>
+          <div class="cron-page__preview-list">
+            <div v-for="(t, i) in futureExecTimes" :key="i" class="cron-page__preview-item">
+              <el-tag size="small" type="info">{{ i + 1 }}</el-tag>
+              <span>{{ t }}</span>
+            </div>
+          </div>
+        </div>
       </div>
       <span slot="footer" class="dialog-footer">
         <el-button @click="taskRuleAdd = false; taskRule = false">取 消</el-button>
@@ -292,8 +303,11 @@ export default {
       cronChoose: '',
       rpcLog: [],
       timerId: null,
+      countdownTick: 0,
+      countdownTimerId: null,
       search: '',
       statusFilter: '',
+      moduleFilter: [],
       cronFunc: '',
       cronName: '',
       cronPeriod: '0',
@@ -332,8 +346,67 @@ export default {
       return this.taskData.filter(item => {
         const matchKeyword = !keyword || item.func.toLowerCase().includes(keyword) || (item.name || '').toLowerCase().includes(keyword);
         const matchStatus = this.statusFilter === '' || item.status === this.statusFilter;
-        return matchKeyword && matchStatus;
+        const rowModule = (item.func || '').split('/')[1] || '';
+        const matchModule = this.moduleFilter.includes(rowModule);
+        return matchKeyword && matchStatus && matchModule;
       });
+    },
+    moduleOptions() {
+      const modules = [...new Set(this.taskData.map(row => (row.func || '').split('/')[1]).filter(Boolean))];
+      return modules.sort();
+    },
+    futureExecTimes() {
+      const period = Number(this.cronPeriod) * 1000;
+      if (!period || period < 5000 || !this.cronBetween || !this.cronBetween[0] || !this.cronBetween[1]) return [];
+      const startMs = this.cronBetween[0].getTime();
+      const endMs = this.cronBetween[1].getTime();
+      const now = Date.now();
+      const results = [];
+      // 对齐到周期：找到从start开始的下一个周期点
+      let cursor = Math.max(startMs, now);
+      if (cursor > startMs) {
+        const steps = Math.ceil((cursor - startMs) / period);
+        cursor = startMs + steps * period;
+      }
+      const maxTime = now + 400 * 86400000; // 搜索未来约13个月
+      let guard = 0;
+      while (cursor <= maxTime && results.length < 5 && guard < 500000) {
+        guard++;
+        if (cursor > now) {
+          const d = new Date(cursor);
+          const weekIdx = d.getDay() === 0 ? 6 : d.getDay() - 1;
+          const hour = d.getHours();
+          const date = d.getDate();
+          const weekMatch = this.WW.includes(weekIdx);
+          const hourMatch = this.HH.includes(hour);
+          const monthMatch = this.MM.includes(date);
+          if (weekMatch && hourMatch && monthMatch) {
+            const label = d.format('yyyy-MM-dd hh:mm:ss');
+            results.push(cursor > endMs ? label + '（已超出有效期）' : label);
+            cursor += period;
+          } else if (!hourMatch) {
+            // 当前小时不匹配，跳到下一个匹配小时
+            const nextH = this.HH.find(h => h > hour);
+            const next = new Date(cursor);
+            if (nextH !== undefined) {
+              next.setHours(nextH, 0, 0, 0);
+            } else {
+              next.setDate(next.getDate() + 1);
+              next.setHours(this.HH[0] || 0, 0, 0, 0);
+            }
+            cursor = startMs + Math.ceil((next.getTime() - startMs) / period) * period;
+          } else {
+            // 小时匹配但日/周不匹配，跳到明天首个匹配小时
+            const next = new Date(cursor);
+            next.setDate(next.getDate() + 1);
+            next.setHours(this.HH[0] || 0, 0, 0, 0);
+            cursor = startMs + Math.ceil((next.getTime() - startMs) / period) * period;
+          }
+        } else {
+          cursor += period;
+        }
+      }
+      return results;
     },
     showCronDialog: {
       get() {
@@ -354,16 +427,41 @@ export default {
     }
     this.getTaskList();
     this.timerId = setInterval(this.getTaskList, 3000);
+    this.countdownTimerId = setInterval(() => { this.countdownTick++; }, 1000);
   },
   beforeDestroy() {
     if (this.timerId) {
       clearInterval(this.timerId);
     }
+    if (this.countdownTimerId) {
+      clearInterval(this.countdownTimerId);
+    }
   },
   methods: {
+    getCountdown(row) {
+      // eslint-disable-next-line no-unused-expressions
+      this.countdownTick; // 触发响应式依赖，每秒刷新
+      const ts = new Date(row.next).getTime();
+      if (isNaN(ts)) return '-';
+      let diff = Math.max(ts - Date.now(), 0);
+      if (diff === 0) {
+        row.rid = '';
+        return '00:00:00';
+      }
+      const days = Math.floor(diff / 86400000);
+      diff %= 86400000;
+      const hours = Math.floor(diff / 3600000);
+      diff %= 3600000;
+      const minutes = Math.floor(diff / 60000);
+      diff %= 60000;
+      const seconds = Math.floor(diff / 1000);
+      const pad = n => String(n).padStart(2, '0');
+      return (days > 0 ? days + '天 ' : '') + pad(hours) + ':' + pad(minutes) + ':' + pad(seconds);
+    },
     clearFilters() {
       this.search = '';
       this.statusFilter = '';
+      this.moduleFilter = [];
     },
     refreshTasks() {
       this.getTaskList();
@@ -583,6 +681,9 @@ export default {
         params: {}
       }).then((res) => {
         this.taskData = res.data;
+        if (this.moduleFilter.length === 0) {
+          this.moduleFilter = this.moduleOptions;
+        }
       });
     },
     cronRemove(target) {
@@ -687,10 +788,8 @@ export default {
   top: 0;
   z-index: 20;
   flex: 0 0 auto;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: flex-start;
-  overflow-x: auto;
-  overflow-y: hidden;
   padding: 10px 12px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.96);
@@ -700,8 +799,7 @@ export default {
 
 
 .cron-page__toolbar-group {
-  flex-wrap: nowrap;
-  min-width: max-content;
+  flex-wrap: wrap;
 }
 
 .cron-page__summary-grid {
@@ -709,13 +807,26 @@ export default {
 }
 
 .cron-page__search {
-  width: 280px;
-  min-width: 280px;
+  width: 400px;
+  min-width: 400px;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .cron-page__status-filter {
   width: 140px;
   min-width: 140px;
+}
+
+.cron-page__module-label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: #64748b;
+  margin-left: 4px;
+}
+
+.cron-page__module-group {
+  flex: 0 0 auto;
 }
 
 .cron-page__list-card {
@@ -750,6 +861,28 @@ export default {
 
 .cron-page__countdown {
   min-width: 90px;
+}
+
+.cron-page__preview {
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fbff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.cron-page__preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cron-page__preview-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
 }
 
 .cron-page__running-text {

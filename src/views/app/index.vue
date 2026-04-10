@@ -1,66 +1,64 @@
 <template>
   <div class="page-shell app-dashboard" v-loading="loading">
-    <el-card class="panel-card">
-      <div class="panel-header">
-        <div class="panel-header__main">
-          <div class="panel-title">应用信息</div>
-          <div class="panel-subtitle">基础资料来自当前应用上下文，管理权限操作可在此继续深入维护。</div>
+    <div class="app-dashboard__top-row">
+      <el-card class="panel-card">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">应用信息</div>
+            <div class="panel-subtitle">基础资料来自当前应用上下文，管理权限操作可在此继续深入维护。</div>
+          </div>
+          <div v-if="canManage" class="panel-header__actions">
+            <el-button size="small" type="primary" icon="el-icon-edit-outline" @click="getAppInfo">编辑信息</el-button>
+            <el-button size="small" type="success" icon="el-icon-user-solid" @click="getAppAcc">权限成员</el-button>
+            <el-button size="small" type="warning" icon="el-icon-monitor" @click="getAppHost(true)">部署主机</el-button>
+          </div>
         </div>
-        <div v-if="canManage" class="panel-header__actions">
-          <el-button size="small" type="primary" icon="el-icon-edit-outline" @click="getAppInfo">编辑信息</el-button>
-          <el-button size="small" type="success" icon="el-icon-user-solid" @click="getAppAcc">权限成员</el-button>
-          <el-button size="small" type="warning" icon="el-icon-monitor" @click="getAppHost(true)">部署主机</el-button>
-        </div>
-      </div>
 
-      <div class="info-grid">
-        <div class="info-item">
-          <div class="info-item__label">应用名称</div>
-          <div class="info-item__value">{{ appInfo.name || '-' }}</div>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-item__label">应用名称</div>
+            <div class="info-item__value">{{ appInfo.name || '-' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">应用描述</div>
+            <div class="info-item__value">{{ appInfo.description || '暂无描述' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">创建时间</div>
+            <div class="info-item__value">{{ appInfo.createtime || '-' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">最近更新时间</div>
+            <div class="info-item__value">{{ appInfo.updatetime || '-' }}</div>
+          </div>
         </div>
-        <div class="info-item">
-          <div class="info-item__label">应用描述</div>
-          <div class="info-item__value">{{ appInfo.description || '暂无描述' }}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-item__label">创建时间</div>
-          <div class="info-item__value">{{ appInfo.createtime || '-' }}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-item__label">最近更新时间</div>
-          <div class="info-item__value">{{ appInfo.updatetime || '-' }}</div>
-        </div>
-      </div>
-    </el-card>
+      </el-card>
 
-    <el-card class="panel-card">
-      <div class="panel-header">
-        <div class="panel-header__main">
-          <div class="panel-title">今日运行态势</div>
-          <div class="panel-subtitle">点击请求类指标可查看模块与函数的负载详情。</div>
+      <el-card class="panel-card">
+        <div class="panel-header">
+          <div class="panel-header__main">
+            <div class="panel-title">今日运行态势</div>
+            <div class="panel-subtitle">点击请求类指标可查看模块与函数的负载详情。</div>
+          </div>
+          <div class="panel-header__actions muted-text">数据更新时间：{{ dashboardUpdateTime }}</div>
         </div>
-        <div class="panel-header__actions muted-text">数据更新时间：{{ dashboardUpdateTime }}</div>
-      </div>
-      <div class="metric-grid">
-        <div
-          v-for="item in callMetrics"
-          :key="item.label"
-          :class="['metric-card', item.className, { 'metric-card--interactive': item.type !== null }]"
-          @click="item.type !== null && item.value > 0 ? showTree(item.type) : null"
-        >
-          <div class="metric-card__label">{{ item.label }}</div>
-          <div class="metric-card__value">{{ item.value }}</div>
-          <div class="metric-card__meta">{{ item.tip }}</div>
+        <div class="metric-grid app-dashboard__runtime-grid">
+          <div
+            v-for="item in callMetrics"
+            :key="item.label"
+            :class="['metric-card', item.className, { 'metric-card--interactive': item.type !== null }]"
+            @click="item.type !== null && item.value > 0 ? showTree(item.type) : null"
+          >
+            <div class="metric-card__label">{{ item.label }}</div>
+            <div class="metric-card__value">{{ item.value }}</div>
+          </div>
+          <div v-for="item in latencyMetrics" :key="item.label" :class="['metric-card', item.className]">
+            <div class="metric-card__label">{{ item.label }}</div>
+            <div class="metric-card__value">{{ item.value }}</div>
+          </div>
         </div>
-      </div>
-      <div class="metric-grid app-dashboard__latency-grid">
-        <div v-for="item in latencyMetrics" :key="item.label" :class="['metric-card', item.className]">
-          <div class="metric-card__label">{{ item.label }}</div>
-          <div class="metric-card__value">{{ item.value }}</div>
-          <div class="metric-card__meta">{{ item.tip }}</div>
-        </div>
-      </div>
-    </el-card>
+      </el-card>
+    </div>
 
     <el-card class="panel-card">
       <div class="panel-header">
@@ -215,45 +213,6 @@
             <div v-for="item in apiModuleRank.slice(0, 6)" :key="item.service" class="app-dashboard__mini-list-item">
               <div class="app-dashboard__mini-list-main">{{ item.label }}</div>
               <div class="app-dashboard__mini-list-value">{{ item.value }} 个</div>
-            </div>
-          </div>
-        </div>
-      </el-card>
-
-      <el-card class="panel-card">
-        <div class="panel-header">
-          <div class="panel-header__main">
-            <div class="panel-title">发布稳定性</div>
-            <div class="panel-subtitle">读取最近构建与部署历史，观察交付成功率、耗时和最新发布时间。</div>
-          </div>
-          <div class="panel-header__actions muted-text">{{ releaseModeText }}</div>
-        </div>
-        <div v-loading="releaseLoading">
-          <div class="app-dashboard__overview-metrics app-dashboard__overview-metrics--compact">
-            <div v-for="item in releaseOverviewMetrics" :key="item.label" class="app-dashboard__mini-stat">
-              <div class="app-dashboard__mini-stat-label">{{ item.label }}</div>
-              <div class="app-dashboard__mini-stat-value">{{ item.value }}</div>
-              <div class="app-dashboard__mini-stat-tip">{{ item.tip }}</div>
-            </div>
-          </div>
-          <div class="app-dashboard__release-grid">
-            <div class="app-dashboard__mini-list">
-              <div class="section-caption">最近构建</div>
-              <div v-if="recentBuildList.length === 0" class="muted-text">暂无构建历史</div>
-              <div v-for="item in recentBuildList" :key="item.id" class="app-dashboard__mini-list-item app-dashboard__mini-list-item--stack">
-                <div class="app-dashboard__mini-list-main">#{{ item.id }}</div>
-                <div class="app-dashboard__mini-list-meta">{{ formatDateTime(item.start) }}</div>
-                <div class="app-dashboard__mini-list-value">{{ formatBuildStatus(item) }} · {{ formatDuration(item.start, item.end) }}</div>
-              </div>
-            </div>
-            <div class="app-dashboard__mini-list">
-              <div class="section-caption">最近部署</div>
-              <div v-if="recentDeployList.length === 0" class="muted-text">暂无部署历史</div>
-              <div v-for="item in recentDeployList" :key="item.id" class="app-dashboard__mini-list-item app-dashboard__mini-list-item--stack">
-                <div class="app-dashboard__mini-list-main">#{{ item.id }}</div>
-                <div class="app-dashboard__mini-list-meta">{{ formatDateTime(item.start) }}</div>
-                <div class="app-dashboard__mini-list-value">{{ formatBuildStatus(item) }} · {{ formatDuration(item.start, item.end) }}</div>
-              </div>
             </div>
           </div>
         </div>
@@ -466,7 +425,7 @@ export default {
       dashboardUpdateTime: new Date().format("yyyy-MM-dd hh:mm:ss"),
       yesterdayQpm: [],
       lastweekQpm: [],
-      chartGranularity: '5',
+      chartGranularity: localStorage.getItem('app_chartGranularity_' + (Cookies.get('app') || '')) || '5',
       currentDayQpm: [],
       loadTreeTitle: ['HTTP调用', 'RPC调用', '定时作业', '执行异常', 'ERR日志'],
       chooseNum: 0,
@@ -493,10 +452,7 @@ export default {
         sha256: 0
       },
       apiModules: [],
-      releaseLoading: false,
-      releaseMode: 'git',
-      releaseBuilds: [],
-      releaseDeploys: []
+
 
     }
   },
@@ -580,30 +536,7 @@ export default {
     apiModuleRank() {
       return this.apiModules.slice().sort((a, b) => b.value - a.value);
     },
-    releaseModeText() {
-      return this.releaseMode === 'package' ? '发布包模式' : 'Git 模式';
-    },
-    releaseOverviewMetrics() {
-      const buildCount = this.releaseBuilds.length;
-      const deployCount = this.releaseDeploys.length;
-      const buildSuccessCount = this.releaseBuilds.filter(item => item.success).length;
-      const deploySuccessCount = this.releaseDeploys.filter(item => item.success).length;
-      const buildDuration = this.averageDuration(this.releaseBuilds);
-      const deployDuration = this.averageDuration(this.releaseDeploys);
-      const latestDeploy = this.releaseDeploys.find(item => item.success && item.end);
-      return [
-        { label: '构建成功率', value: this.formatPercent(buildCount > 0 ? (buildSuccessCount / buildCount) * 100 : 0), tip: `最近 ${buildCount || 0} 次构建` },
-        { label: '部署成功率', value: this.formatPercent(deployCount > 0 ? (deploySuccessCount / deployCount) * 100 : 0), tip: `最近 ${deployCount || 0} 次部署` },
-        { label: '平均构建耗时', value: this.formatDurationByMs(buildDuration), tip: '仅统计已完成构建' },
-        { label: '最近成功发布', value: latestDeploy ? this.formatDateTime(latestDeploy.end || latestDeploy.start) : '-', tip: latestDeploy ? `Deploy #${latestDeploy.id}` : '暂无成功发布' }
-      ];
-    },
-    recentBuildList() {
-      return this.releaseBuilds.slice(0, 5);
-    },
-    recentDeployList() {
-      return this.releaseDeploys.slice(0, 5);
-    }
+
 
   },
   mounted() {
@@ -624,7 +557,6 @@ export default {
     this.getOverviewStats();
     this.getLoadInsight();
     this.getApiAssetSummary();
-    this.getReleaseSummary();
     this.getAppHost();
   },
   beforeDestroy() {
@@ -650,44 +582,6 @@ export default {
       const num = this.toNumber(value);
       return `${num.toFixed(1)}%`;
     },
-    formatDateTime(value) {
-      if (!value) {
-        return '-';
-      }
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) {
-        return value;
-      }
-      return date.format('yyyy-MM-dd hh:mm:ss');
-    },
-    formatDuration(start, end) {
-      if (!start || !end || end < start) {
-        return '-';
-      }
-      return this.formatDurationByMs(end - start);
-    },
-    formatDurationByMs(value) {
-      const ms = this.toNumber(value);
-      if (!ms) {
-        return '-';
-      }
-      const totalSeconds = Math.round(ms / 1000);
-      if (totalSeconds < 60) {
-        return `${totalSeconds} 秒`;
-      }
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = totalSeconds % 60;
-      return seconds > 0 ? `${minutes} 分 ${seconds} 秒` : `${minutes} 分`;
-    },
-    averageDuration(list) {
-      const durationList = (list || [])
-        .filter(item => item && item.start && item.end && item.end >= item.start)
-        .map(item => item.end - item.start);
-      if (durationList.length === 0) {
-        return 0;
-      }
-      return durationList.reduce((sum, item) => sum + item, 0) / durationList.length;
-    },
     flattenApiList(list) {
       const result = [];
       (list || []).forEach(moduleItem => {
@@ -700,12 +594,6 @@ export default {
         });
       });
       return result;
-    },
-    formatBuildStatus(item) {
-      if (!item || !item.start) {
-        return '进行中';
-      }
-      return item.success ? '成功' : '失败';
     },
     setEmptyChart(chart, title) {
       chart.clear();
@@ -1369,6 +1257,7 @@ export default {
       });
     },
     onGranularityChange() {
+      localStorage.setItem('app_chartGranularity_' + this.app, this.chartGranularity);
       this.initMain0(this.yesterdayQpm, this.lastweekQpm, this.currentDayQpm);
     },
     initMain0(yesterday, lasweek, today) {
@@ -1480,16 +1369,56 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+/* 应用信息 & 今日运行态势：紧凑排版 */
+.app-dashboard__top-row .panel-card {
+  ::v-deep .panel-header {
+    margin-bottom: 8px;
+  }
+  ::v-deep .panel-subtitle {
+    margin-top: 2px;
+  }
+  ::v-deep .info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  ::v-deep .info-item {
+    padding: 8px 12px;
+  }
+  ::v-deep .info-item__value {
+    margin-top: 4px;
+  }
+  ::v-deep .metric-grid {
+    gap: 8px;
+  }
+  ::v-deep .metric-card {
+    padding: 10px 14px;
+    border-radius: 12px;
+  }
+  ::v-deep .metric-card__value {
+    margin-top: 4px;
+    font-size: 22px;
+  }
+  ::v-deep .metric-card__meta {
+    margin-top: 4px;
+  }
+}
+
+.app-dashboard__runtime-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.app-dashboard__top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 12px;
+}
+
 .app-dashboard__hero-grid {
   margin-top: 14px;
 }
 
 .app-dashboard__summary-time {
   font-size: 17px;
-}
-
-.app-dashboard__latency-grid {
-  margin-top: 10px;
 }
 
 .app-dashboard__overview-grid {
@@ -1568,12 +1497,7 @@ export default {
   margin-top: 12px;
 }
 
-.app-dashboard__release-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-}
+
 
 .app-dashboard__mini-list {
   padding: 12px;
@@ -1709,11 +1633,16 @@ export default {
 }
 
 @media (max-width: 1200px) {
+  .app-dashboard__top-row,
   .app-dashboard__overview-grid,
   .app-dashboard__insight-grid,
   .app-dashboard__dual-chart,
   .app-dashboard__release-grid {
     grid-template-columns: 1fr;
+  }
+
+  .app-dashboard__runtime-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .app-dashboard__host-overview,

@@ -29,7 +29,6 @@
               <div class="app-entry__desc">{{ item.name }}</div>
               <div class="app-entry__footer">
                 <span class="app-entry__meta">最近更新 {{ item.displayTime }}</span>
-                <span class="app-entry__action">进入应用</span>
               </div>
             </el-button>
           </el-col>
