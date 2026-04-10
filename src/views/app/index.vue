@@ -1,5 +1,5 @@
 <template>
-  <div class="page-shell app-dashboard" v-loading="loading">
+  <div class="page-shell app-dashboard">
     <div class="app-dashboard__top-row">
       <el-card class="panel-card">
         <div class="panel-header">
@@ -10,7 +10,7 @@
           <div v-if="canManage" class="panel-header__actions">
             <el-button size="small" type="primary" icon="el-icon-edit-outline" @click="getAppInfo">编辑信息</el-button>
             <el-button size="small" type="success" icon="el-icon-user-solid" @click="getAppAcc">权限成员</el-button>
-            <el-button size="small" type="warning" icon="el-icon-monitor" @click="getAppHost(true)">部署主机</el-button>
+            <el-button v-if="!isProd" size="small" type="warning" icon="el-icon-monitor" @click="getAppHost(true)">部署主机</el-button>
           </div>
         </div>
 
@@ -160,33 +160,6 @@
           <div>
             <div class="section-caption">风险 Top 8</div>
             <div ref="overviewRiskChart" class="app-dashboard__chart app-dashboard__chart--small"></div>
-          </div>
-        </div>
-      </el-card>
-
-      <el-card class="panel-card">
-        <div class="panel-header">
-          <div class="panel-header__main">
-            <div class="panel-title">主机健康概览</div>
-            <div class="panel-subtitle">复用部署主机数据，补充健康状态、环境分布与待处理问题。</div>
-          </div>
-        </div>
-        <div class="app-dashboard__overview-metrics app-dashboard__overview-metrics--compact">
-          <div v-for="item in hostOverviewMetrics" :key="item.label" class="app-dashboard__mini-stat">
-            <div class="app-dashboard__mini-stat-label">{{ item.label }}</div>
-            <div class="app-dashboard__mini-stat-value">{{ item.value }}</div>
-            <div class="app-dashboard__mini-stat-tip">{{ item.tip }}</div>
-          </div>
-        </div>
-        <div class="app-dashboard__host-overview">
-          <div ref="hostEnvChart" class="app-dashboard__chart app-dashboard__chart--small"></div>
-          <div class="app-dashboard__mini-list">
-            <div class="section-caption">待关注主机</div>
-            <div v-if="invalidHosts.length === 0" class="muted-text">暂无异常主机</div>
-            <div v-for="item in invalidHosts" :key="item.id" class="app-dashboard__mini-list-item">
-              <div class="app-dashboard__mini-list-main">{{ item.ip }}:{{ item.port }}</div>
-              <el-tag size="mini" :type="hostValidType(item.valid)">{{ hostValidText(item.valid) }}</el-tag>
-            </div>
           </div>
         </div>
       </el-card>
@@ -457,14 +430,14 @@ export default {
     }
   },
   computed: {
+    isProd() {
+      return localStorage.getItem('env') === 'prod';
+    },
     canManage() {
       return this.appInfo.role === 1;
     },
     roleLabel() {
       return this.appInfo.role === 1 ? '管理' : this.appInfo.role === 2 ? '协作' : '访客';
-    },
-    validHostCount() {
-      return this.app_hosts.filter(item => item.valid === 1).length;
     },
     hostDialogTitle() {
       return this.hostId === 0 ? '新增主机' : '编辑主机';
@@ -500,29 +473,6 @@ export default {
         { label: '告警率', value: this.formatPercent(total > 0 ? (warn / total) * 100 : 0), tip: '日志异常占比' }
       ];
     },
-    hostOverviewMetrics() {
-      const total = this.app_hosts.length;
-      const valid = this.validHostCount;
-      const invalid = total - valid;
-      const envCount = this.hostEnvDistribution.length;
-      return [
-        { label: '主机总数', value: total || 0, tip: '当前应用已登记主机' },
-        { label: '可用主机', value: valid || 0, tip: '连接测试成功' },
-        { label: '异常主机', value: invalid > 0 ? invalid : 0, tip: '连接失败或网络不通' },
-        { label: '环境数量', value: envCount || 0, tip: '按 env 聚合' }
-      ];
-    },
-    hostEnvDistribution() {
-      const envMap = {};
-      this.app_hosts.forEach(item => {
-        const key = item.env || '未设置';
-        envMap[key] = (envMap[key] || 0) + 1;
-      });
-      return Object.keys(envMap).map(key => ({ name: key, value: envMap[key] })).sort((a, b) => b.value - a.value);
-    },
-    invalidHosts() {
-      return this.app_hosts.filter(item => item.valid !== 1).slice(0, 5);
-    },
     apiOverviewMetrics() {
       const total = this.apiAsset.total;
       const signed = this.apiAsset.sign;
@@ -554,10 +504,13 @@ export default {
     });
     this.timerId = setInterval(this.getDashBoard, 30000);
     this.getStatList();
-    this.getOverviewStats();
-    this.getLoadInsight();
-    this.getApiAssetSummary();
-    this.getAppHost();
+    // 非首屏关键请求延迟执行，优先渲染上方图表
+    setTimeout(() => {
+      this.getOverviewStats();
+      this.getLoadInsight();
+      this.getApiAssetSummary();
+      this.getAppHost();
+    }, 0);
   },
   beforeDestroy() {
     if (this.timerId) {
@@ -614,15 +567,18 @@ export default {
       });
     },
     handleResize() {
-      ['main0', 'main1', 'main2', 'overviewMixChart', 'overviewTrendChart', 'overviewRankChart', 'overviewRiskChart', 'hostEnvChart', 'apiAssetChart'].forEach(refName => {
-        const el = this.$refs[refName];
-        if (el) {
-          const chart = echarts.getInstanceByDom(el);
-          if (chart) {
-            chart.resize();
+      clearTimeout(this._resizeTimer);
+      this._resizeTimer = setTimeout(() => {
+        ['main0', 'main1', 'main2', 'overviewMixChart', 'overviewTrendChart', 'overviewRankChart', 'overviewRiskChart', 'apiAssetChart'].forEach(refName => {
+          const el = this.$refs[refName];
+          if (el) {
+            const chart = echarts.getInstanceByDom(el);
+            if (chart) {
+              chart.resize();
+            }
           }
-        }
-      });
+        });
+      }, 200);
     },
     formatLatency(value) {
       if (value === undefined || value === null || value === 'NaN') {
@@ -646,15 +602,15 @@ export default {
         }
       }).then(res => {
         if (res.code === 0) {
-          this.loadTree = [...new Set(res.data.map(x => x.module))].map(x => {
-            return {
-              label: x,
-              value: res.data.filter(y => y.module === x).map(y => y.num).reduce((a, b) => a + b, 0),
-              children: res.data.filter(y => y.module === x).map(y => {
-                return { label: y.func, value: y.num };
-              })
-            };
+          const moduleMap = {};
+          (res.data || []).forEach(item => {
+            if (!moduleMap[item.module]) {
+              moduleMap[item.module] = { label: item.module, value: 0, children: [] };
+            }
+            moduleMap[item.module].value += this.toNumber(item.num);
+            moduleMap[item.module].children.push({ label: item.func, value: item.num });
           });
+          this.loadTree = Object.values(moduleMap);
           this.showLoadTree = true;
         }
       }).finally(() => {
@@ -726,9 +682,6 @@ export default {
           if (showDialog) {
             this.dialogTableVisible2 = true;
           }
-          this.$nextTick(() => {
-            this.renderHostEnvChart();
-          });
         }
       });
     },
@@ -878,22 +831,15 @@ export default {
     },
 
     getYesterdayAndLastWeekQpm() {
-      request({
-        url: "/admin/home/getQpmByDay",
-        params: {
-          date: new Date(new Date().getTime() - 24 * 3600 * 1000).format("yyyy-MM-dd")
-        }
-      }).then(res => {
-        this.yesterdayQpm = res.data;
-        request({
-          url: "/admin/home/getQpmByDay",
-          params: {
-            date: new Date(new Date().getTime() - 7 * 24 * 3600 * 1000).format("yyyy-MM-dd")
-          }
-        }).then(res2 => {
-          this.lastweekQpm = res2.data;
-          this.getDashBoard();
-        });
+      const yesterday = new Date(new Date().getTime() - 24 * 3600 * 1000).format("yyyy-MM-dd");
+      const lastWeek = new Date(new Date().getTime() - 7 * 24 * 3600 * 1000).format("yyyy-MM-dd");
+      Promise.all([
+        request({ url: "/admin/home/getQpmByDay", params: { date: yesterday } }),
+        request({ url: "/admin/home/getQpmByDay", params: { date: lastWeek } })
+      ]).then(([res1, res2]) => {
+        this.yesterdayQpm = res1.data;
+        this.lastweekQpm = res2.data;
+        this.getDashBoard();
       });
     },
     getOverviewStats() {
@@ -1127,26 +1073,6 @@ export default {
     renderTopCharts() {
       this.renderBarChart('overviewRankChart', this.loadInsight.normal, '调用量', { HTTP: '#2563eb', RPC: '#10b981', TASK: '#f59e0b' });
       this.renderBarChart('overviewRiskChart', this.loadInsight.risk, '风险量', { 异常: '#ef4444', 日志: '#8b5cf6' });
-    },
-    renderHostEnvChart() {
-      if (!this.$refs.hostEnvChart) {
-        return;
-      }
-      const chart = echarts.getInstanceByDom(this.$refs.hostEnvChart) || echarts.init(this.$refs.hostEnvChart);
-      if (!this.hostEnvDistribution.length) {
-        this.setEmptyChart(chart, '暂无主机数据');
-        return;
-      }
-      chart.setOption({
-        color: ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#f97316'],
-        tooltip: { trigger: 'item' },
-        series: [{
-          type: 'pie',
-          radius: ['42%', '68%'],
-          label: { formatter: '{b}\n{c}' },
-          data: this.hostEnvDistribution
-        }]
-      });
     },
     renderApiAssetChart() {
       if (!this.$refs.apiAssetChart) {
@@ -1488,7 +1414,6 @@ export default {
   margin-top: 12px;
 }
 
-.app-dashboard__host-overview,
 .app-dashboard__api-overview {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 220px;
@@ -1645,7 +1570,6 @@ export default {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .app-dashboard__host-overview,
   .app-dashboard__api-overview {
     grid-template-columns: 1fr;
   }

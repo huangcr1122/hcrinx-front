@@ -147,7 +147,7 @@ export default {
     initCurrentRoutes() {
       const {path} = this.$route;
       let route = this.routes.find((item) => {
-        if (this.env !== 'dev' && (item.path === '/ops' || item.path === '/apimkt')) item.hidden = true;
+        if (this.env === 'prod' && (item.path === '/ops' || item.path === '/apimkt')) item.hidden = true;
         return item.path === "/" + path.split("/")[1]
       });
       if (!route) {
