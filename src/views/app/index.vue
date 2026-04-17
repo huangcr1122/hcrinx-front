@@ -444,19 +444,19 @@ export default {
     },
     callMetrics() {
       return [
-        { label: this.loadTreeTitle[0], value: this.dashboard.http || 0, type: 0, className: 'metric-card--primary', tip: '查看 HTTP 请求负载分布' },
-        { label: this.loadTreeTitle[1], value: this.dashboard.rpc || 0, type: 1, className: 'metric-card--primary', tip: '查看 RPC 请求负载分布' },
-        { label: this.loadTreeTitle[2], value: this.dashboard.task || 0, type: 2, className: 'metric-card--primary', tip: '查看定时作业负载分布' },
+        { label: this.loadTreeTitle[0], value: this.dashboard.http || 0, type: 0, className: 'metric-card--success', tip: '查看 HTTP 请求负载分布' },
+        { label: this.loadTreeTitle[1], value: this.dashboard.rpc || 0, type: 1, className: 'metric-card--success', tip: '查看 RPC 请求负载分布' },
+        { label: this.loadTreeTitle[2], value: this.dashboard.task || 0, type: 2, className: 'metric-card--success', tip: '查看定时作业负载分布' },
         { label: this.loadTreeTitle[3], value: this.dashboard.err || 0, type: 3, className: 'metric-card--danger', tip: '查看异常函数分布' },
         { label: this.loadTreeTitle[4], value: this.dashboard.warn || 0, type: 4, className: 'metric-card--danger', tip: '查看日志异常分布' }
       ];
     },
     latencyMetrics() {
       return [
-        { label: '平均时延', value: this.formatLatency(this.dashboard.avg), className: 'metric-card--success', tip: '整体平均响应耗时' },
-        { label: 'P90 时延', value: this.formatLatency(this.dashboard.p90), className: 'metric-card--success', tip: '90% 请求耗时不超过该值' },
-        { label: 'P95 时延', value: this.formatLatency(this.dashboard.p95), className: 'metric-card--success', tip: '95% 请求耗时不超过该值' },
-        { label: 'P99 时延', value: this.formatLatency(this.dashboard.p99), className: 'metric-card--success', tip: '关注长尾请求耗时' }
+        { label: '平均时延', value: this.formatLatency(this.dashboard.avg), className: 'metric-card--primary', tip: '整体平均响应耗时' },
+        { label: 'P90 时延', value: this.formatLatency(this.dashboard.p90), className: 'metric-card--primary', tip: '90% 请求耗时不超过该值' },
+        { label: 'P95 时延', value: this.formatLatency(this.dashboard.p95), className: 'metric-card--primary', tip: '95% 请求耗时不超过该值' },
+        { label: 'P99 时延', value: this.formatLatency(this.dashboard.p99), className: 'metric-card--primary', tip: '关注长尾请求耗时' }
       ];
     },
     totalCallCount() {
