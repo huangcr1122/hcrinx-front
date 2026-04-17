@@ -101,7 +101,7 @@ export default {
     },
     ssoLogin() {
       const returnUrl = location.href;
-      location.href = 'http://172.24.154.32/xtgzstg/sso/auth?returnUrl=' + encodeURIComponent(returnUrl);
+      location.href = location.origin + '/xtgzstg/sso/auth?returnUrl=' + encodeURIComponent(returnUrl);
     },
     ssologinCheck(code) {
       this.loadingsso = true;

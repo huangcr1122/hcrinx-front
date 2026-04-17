@@ -445,18 +445,18 @@ export default {
     callMetrics() {
       return [
         { label: this.loadTreeTitle[0], value: this.dashboard.http || 0, type: 0, className: 'metric-card--primary', tip: '查看 HTTP 请求负载分布' },
-        { label: this.loadTreeTitle[1], value: this.dashboard.rpc || 0, type: 1, className: 'metric-card--success', tip: '查看 RPC 请求负载分布' },
-        { label: this.loadTreeTitle[2], value: this.dashboard.task || 0, type: 2, className: 'metric-card--warning', tip: '查看定时作业负载分布' },
+        { label: this.loadTreeTitle[1], value: this.dashboard.rpc || 0, type: 1, className: 'metric-card--primary', tip: '查看 RPC 请求负载分布' },
+        { label: this.loadTreeTitle[2], value: this.dashboard.task || 0, type: 2, className: 'metric-card--primary', tip: '查看定时作业负载分布' },
         { label: this.loadTreeTitle[3], value: this.dashboard.err || 0, type: 3, className: 'metric-card--danger', tip: '查看异常函数分布' },
-        { label: this.loadTreeTitle[4], value: this.dashboard.warn || 0, type: 4, className: 'metric-card--violet', tip: '查看日志异常分布' }
+        { label: this.loadTreeTitle[4], value: this.dashboard.warn || 0, type: 4, className: 'metric-card--danger', tip: '查看日志异常分布' }
       ];
     },
     latencyMetrics() {
       return [
-        { label: '平均时延', value: this.formatLatency(this.dashboard.avg), className: 'metric-card--primary', tip: '整体平均响应耗时' },
+        { label: '平均时延', value: this.formatLatency(this.dashboard.avg), className: 'metric-card--success', tip: '整体平均响应耗时' },
         { label: 'P90 时延', value: this.formatLatency(this.dashboard.p90), className: 'metric-card--success', tip: '90% 请求耗时不超过该值' },
-        { label: 'P95 时延', value: this.formatLatency(this.dashboard.p95), className: 'metric-card--warning', tip: '95% 请求耗时不超过该值' },
-        { label: 'P99 时延', value: this.formatLatency(this.dashboard.p99), className: 'metric-card--danger', tip: '关注长尾请求耗时' }
+        { label: 'P95 时延', value: this.formatLatency(this.dashboard.p95), className: 'metric-card--success', tip: '95% 请求耗时不超过该值' },
+        { label: 'P99 时延', value: this.formatLatency(this.dashboard.p99), className: 'metric-card--success', tip: '关注长尾请求耗时' }
       ];
     },
     totalCallCount() {
@@ -924,62 +924,6 @@ export default {
         });
       });
     },
-    async getReleaseSummary() {
-      this.releaseLoading = true;
-      try {
-        const gitRes = await request({
-          url: "/admin/ops/gitCommitCheck",
-          params: {
-            commitid: '',
-            pageNo: 1,
-            pageSize: 6
-          }
-        });
-        let buildList = [];
-        if (gitRes.code === 1) {
-          this.releaseMode = 'package';
-          const buildRes = await request({
-            url: "/admin/ops/gitCommitPackageHis",
-            params: { commitid: 'default' }
-          });
-          buildList = (buildRes.data || []).map(item => ({ ...item, commitid: 'default' }));
-        } else {
-          this.releaseMode = 'git';
-          const commitIds = (gitRes.data || []).map(item => item.id).filter(Boolean).slice(0, 4);
-          const buildGroup = await Promise.all(commitIds.map(commitid => {
-            return request({
-              url: "/admin/ops/gitCommitPackageHis",
-              params: { commitid }
-            }).then(res => (res.data || []).map(item => ({ ...item, commitid })));
-          }));
-          buildList = buildGroup.reduce((acc, item) => acc.concat(item), []);
-        }
-        this.releaseBuilds = buildList.sort((a, b) => this.toNumber(b.start) - this.toNumber(a.start)).slice(0, 8);
-        if (this.releaseBuilds.length === 0) {
-          this.releaseDeploys = [];
-          return;
-        }
-        const deployGroup = await Promise.all(this.releaseBuilds.slice(0, 6).map(item => {
-          return request({
-            url: "/admin/ops/buildDeployHis",
-            params: {
-              commitid: item.commitid || 'default',
-              buildid: item.id
-            }
-          }).then(res => (res.data || []).map(record => ({
-            ...record,
-            buildid: item.id,
-            commitid: item.commitid || 'default'
-          }))).catch(() => []);
-        }));
-        this.releaseDeploys = deployGroup.reduce((acc, item) => acc.concat(item), []).sort((a, b) => this.toNumber(b.start) - this.toNumber(a.start)).slice(0, 8);
-      } catch (e) {
-        this.releaseBuilds = [];
-        this.releaseDeploys = [];
-      } finally {
-        this.releaseLoading = false;
-      }
-    },
     renderFlowMixChart() {
       if (!this.$refs.overviewMixChart) {
         return;
@@ -1247,7 +1191,7 @@ export default {
       const xAxis = { type: 'category', data: data.map(x => x.dcdate) };
       const yAxis = { type: 'value' };
       const grid = { left: '3%', right: '4%', bottom: '3%', containLabel: true };
-      const legend = { selectedMode: true };
+      const legend = { selectedMode: true, selected: { MAX: false } };
       const dataZoom = [{ type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: true }];
       chart1.setOption({
         color: ['#2563eb', '#10b981', '#f59e0b', '#ef4444'],

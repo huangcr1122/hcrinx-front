@@ -53,7 +53,7 @@ export default {
       levelColor: ['#808080', '#000080', '#000000', '#8b8b00', '#ff0000'],
       levelTagType: ['', '', 'info', 'warning', 'danger'],
       page: 1,
-      period: [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 728 * 3600 * 1000), new Date()],
+      period: [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 8 * 3600 * 1000), new Date()],
       loading: false,
       noMemoLog: false,
       noCommonLog: false,

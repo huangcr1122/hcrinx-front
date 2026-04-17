@@ -102,10 +102,10 @@ export default {
   data() {
     const userInfo = JSON.parse(localStorage.getItem("hcrinx_user") || "{}");
     return {
-      routes: constantRoutes,
+      allRoutes: constantRoutes,
       select: {},
       username: userInfo.userid || "user",
-      env: localStorage.getItem("env"),
+      name: userInfo.name,
     };
   },
   computed: {
@@ -132,12 +132,19 @@ export default {
     showApp() {
       return ["/", "/home", "/user", "/topology", "/syslog", "/nginx"].indexOf(this.activeMenu) === -1;
     },
+    routes() {
+      const env = localStorage.getItem("env");
+      if (env === "prod") {
+        return this.allRoutes.filter(item => item.path !== "/ops" && item.path !== "/apimkt");
+      }
+      return this.allRoutes;
+    },
 
     envLabel() {
-      return (this.env || "prod").toUpperCase();
+      return (localStorage.getItem("env") || "prod").toUpperCase();
     },
     avatarText() {
-      return this.username ? this.username.slice(0, 1).toUpperCase() : "U";
+      return this.name ? this.name.slice(0, 1) : "U";
     },
   },
   mounted() {
@@ -146,10 +153,7 @@ export default {
   methods: {
     initCurrentRoutes() {
       const {path} = this.$route;
-      let route = this.routes.find((item) => {
-        if (this.env === 'prod' && (item.path === '/ops' || item.path === '/apimkt')) item.hidden = true;
-        return item.path === "/" + path.split("/")[1]
-      });
+      let route = this.routes.find((item) => item.path === "/" + path.split("/")[1]);
       if (!route) {
         route = this.routes.find((item) => item.path === "/");
       }

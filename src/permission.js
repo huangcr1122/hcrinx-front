@@ -8,7 +8,7 @@ import getPageTitle from "@/utils/get-page-title";
 
 NProgress.configure({showSpinner: false}); // NProgress Configuration
 
-const whiteList = ["/login", "/apimkt"]; // no redirect whitelist
+const whiteList = ["/login"]; // no redirect whitelist
 
 router.beforeEach(async (to, from, next) => {
   // start progress bar
@@ -26,7 +26,14 @@ router.beforeEach(async (to, from, next) => {
       next({path: "/", replace: true});
       NProgress.done();
     } else {
-      next();
+      // prod环境下禁止访问ops和apimkt
+      const env = localStorage.getItem("env");
+      if (env === "prod" && (to.path === "/ops" || to.path === "/apimkt")) {
+        next({path: "/", replace: true});
+        NProgress.done();
+      } else {
+        next();
+      }
     }
   } else {
     /* has no token*/

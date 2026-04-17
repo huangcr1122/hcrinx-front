@@ -51,6 +51,7 @@
           placeholder="模块 / 方法"
           separator="/"
           size="small"
+          class="rpc-log-page__wide-field"
         />
         <el-input
           v-model="sign"
@@ -60,7 +61,7 @@
           size="small"
           @input="sign = sign.replace(/[^\d]/g, '')"
         />
-        <el-input v-model="request" clearable placeholder="请求参数搜索" size="small" />
+        <el-input v-model="request" clearable placeholder="请求参数搜索" size="small" class="rpc-log-page__wide-field" />
         <el-input
           v-model="code"
           clearable
@@ -309,7 +310,7 @@ export default {
     return {
       app: Cookies.get('app'),
       appInfo: JSON.parse(localStorage.getItem("app")) || {},
-      period: [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 728 * 3600 * 1000), new Date()],
+      period: [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 8 * 3600 * 1000), new Date()],
       logLevel: ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR'],
       levelColor: ['#9E9E9E', '#8BC34A', '#409EFF', '#E6A23C', '#ff0000'],
       page: 1,
@@ -342,7 +343,7 @@ export default {
       showLog: false,
       showMsg: false,
       queryError: false,
-      noCache: false,
+      noCache: true,
       rpcLog: [],
       rpcMsg: '',
       rpcLogLoading: false,
@@ -496,8 +497,8 @@ export default {
       this.tappip = null;
       this.funcChoose = null;
       this.queryError = false;
-      this.noCache = false;
-      this.period = [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 728 * 3600 * 1000), new Date()];
+      this.noCache = true;
+      this.period = [new Date(Date.now() - Date.now() % (24 * 3600 * 1000) - 8 * 3600 * 1000), new Date()];
       this.getLogTable();
     },
     load() {
@@ -864,6 +865,10 @@ export default {
 .rpc-log-page__filter-grid {
   gap: 4px;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.rpc-log-page__wide-field {
+  grid-column: span 2;
 }
 
 
