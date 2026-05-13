@@ -57,7 +57,14 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="告警类型" width="120">
+          <template slot-scope="scope">
+            <el-tag :type="getAlertTypeTagType(scope.row)" size="mini" effect="plain">{{ getAlertTypeLabel(scope.row) }}</el-tag>
+          </template>
+        </el-table-column>
+
         <el-table-column label="生效时间" width="200">
+
           <template slot-scope="scope">
             <div class="period-cell">
               <span><i class="el-icon-time"></i> {{ scope.row.alertstart }}</span>
@@ -133,7 +140,16 @@
           <el-input v-model.trim="alertTarget" placeholder="例如：app/module 或 app/module/func"></el-input>
         </el-form-item>
 
+        <el-form-item label="告警类型">
+          <el-radio-group v-model="alertType" size="small">
+            <el-radio :label="0">全部</el-radio>
+            <el-radio :label="1">请求异常</el-radio>
+            <el-radio :label="2">日志异常</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
         <el-form-item label="生效时间">
+
           <el-time-picker
             is-range
             v-model="alertPeriod"
@@ -220,6 +236,7 @@ export default {
       alertEdit: false,
       alertId: '',
       alertTarget: '',
+      alertType: 0, // 默认展示并保存为全量告警
       alertPeriod: createDefaultAlertPeriod(),
       alertUserId: [],
       inputVisible: false,
@@ -255,7 +272,7 @@ export default {
     filteredAlertData() {
       const keyword = this.search.trim().toLowerCase();
       return this.alertData.filter((row) => {
-        const source = [row.id, row.target, row.userid, row.msg, row.createby].join(' ').toLowerCase();
+        const source = [row.id, row.target, row.userid, row.msg, row.createby, this.getAlertTypeLabel(row)].join(' ').toLowerCase();
         const matchesSearch = !keyword || source.indexOf(keyword) !== -1;
         const active = this.isInAlertPeriod(row);
         const matchesStatus = this.statusFilter === 'all'
@@ -284,6 +301,31 @@ export default {
       }
       return row.userid.split(',').filter(Boolean);
     },
+    getAlertTypeValue(row) {
+      const alerttype = row && row.alerttype != null ? Number(row.alerttype) : 0;
+      return [1, 2].indexOf(alerttype) !== -1 ? alerttype : 0;
+    },
+    getAlertTypeLabel(row) {
+      const alerttype = this.getAlertTypeValue(row);
+      if (alerttype === 1) {
+        return '请求异常';
+      }
+      if (alerttype === 2) {
+        return '日志异常';
+      }
+      return '全部';
+    },
+    getAlertTypeTagType(row) {
+      const alerttype = this.getAlertTypeValue(row);
+      if (alerttype === 1) {
+        return 'warning';
+      }
+      if (alerttype === 2) {
+        return 'danger';
+      }
+      return 'success';
+    },
+
     messagePreview(msg) {
       if (!msg) {
         return '-';
@@ -400,6 +442,7 @@ export default {
     resetDialog() {
       this.alertId = '';
       this.alertTarget = '';
+      this.alertType = 0;
       this.alertUserId = [];
       this.alertPeriod = createDefaultAlertPeriod();
       this.inputVisible = false;
@@ -415,7 +458,8 @@ export default {
         target: this.alertTarget,
         alertstart: this.alertPeriod[0].format("hh:mm:ss"),
         alertend: this.alertPeriod[1].format("hh:mm:ss"),
-        userid: this.alertUserId.join(",")
+        userid: this.alertUserId.join(","),
+        alerttype: this.alertType, // 透传告警类型给后台
       };
       if (this.alertEdit) {
         params.id = this.alertId;
@@ -441,10 +485,12 @@ export default {
       this.resetDialog();
       this.alertId = row.id;
       this.alertTarget = row.target;
+      this.alertType = this.getAlertTypeValue(row);
       this.alertUserId = this.getUserIds(row);
       this.alertPeriod = [new Date('2000-01-01 ' + row.alertstart), new Date('2000-01-01 ' + row.alertend)];
       this.alertEdit = true;
     },
+
     getAlertList() {
       this.loading = true;
       request({
