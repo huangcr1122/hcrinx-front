@@ -6,6 +6,8 @@
         <div class="page-toolbar__group page-toolbar__grow">
           <el-date-picker v-model="period" class="log-page__range" align="right" size="small" :picker-options="pickerOptions" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" type="datetimerange" :default-time="['08:00:00', '15:00:00']"></el-date-picker>
           <el-input v-model="logrid" class="log-page__input--rid" clearable placeholder="rid 搜索" size="small"></el-input>
+          <el-input v-model="clazz" class="log-page__input--clazz" clearable placeholder="类名搜索" size="small"></el-input>
+          <el-input v-model="method" class="log-page__input--method" clearable placeholder="方法搜索" size="small"></el-input>
           <el-input v-model="content" class="log-page__input--content" clearable placeholder="日志内容搜索" size="small"></el-input>
           <el-select v-model="appip" class="log-page__select--ip" clearable filterable placeholder="日志生产者 IP" size="small">
             <el-option v-for="item in logIp" :key="item" :label="item" :value="item"></el-option>
@@ -60,6 +62,8 @@ export default {
       level: 'INFO',
       content: '',
       logrid: '',
+      clazz: '',
+      method: '',
       appip: '',
       logIp: [],
       logData: [],
@@ -260,6 +264,8 @@ export default {
     resetFilters() {
       this.logrid = '';
       this.content = '';
+      this.clazz = '';
+      this.method = '';
       this.appip = '';
       this.noMemoLog = false;
       this.noCommonLog = false;
@@ -277,6 +283,8 @@ export default {
         end: this.period[1].format("yyyy-MM-dd hh:mm:ss"),
         content: this.content,
         rid: this.logrid,
+        clazz: this.clazz,
+        method: this.method,
         appip: this.appip,
         noMemoLog: this.noMemoLog ? 1 : 0,
         noCommonLog: this.noCommonLog ? 1 : 0,
@@ -490,6 +498,11 @@ export default {
 
 .log-page__range {
   flex: 1 1 440px;
+}
+
+.log-page__input--clazz,
+.log-page__input--method {
+  width: 180px;
 }
 
 ::v-deep .log-page__range.el-date-editor {
