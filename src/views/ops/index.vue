@@ -136,7 +136,6 @@
 
         <div class="list-scroll ops-page__list-shell">
           <el-empty v-if="chooseBuildId !== '' && chooseCommitId !== '' && deployList.length === 0" description="暂无部署历史，可直接发起部署">
-            <el-button type="warning" @click="deployApp">立即部署</el-button>
           </el-empty>
           <el-empty v-else-if="chooseBuildId === '' || chooseCommitId === ''" description="请选择一个构建版本" />
           <el-collapse v-else v-model="chooseDeployId" accordion>
