@@ -122,76 +122,6 @@
         <div ref="main2" class="app-dashboard__chart"></div>
       </div>
     </el-card>
-    <el-card class="panel-card">
-      <div class="panel-header">
-        <div class="panel-header__main">
-          <div class="panel-title">流量结构总览</div>
-          <div class="panel-subtitle">基于今日实时流量与近 14 天历史聚合，快速看清调用结构和稳定性变化。</div>
-        </div>
-      </div>
-      <div class="app-dashboard__overview-grid">
-        <div class="app-dashboard__overview-panel app-dashboard__overview-panel--summary">
-          <div class="app-dashboard__overview-metrics">
-            <div v-for="item in flowOverviewMetrics" :key="item.label" class="app-dashboard__mini-stat">
-              <div class="app-dashboard__mini-stat-label">{{ item.label }}</div>
-              <div class="app-dashboard__mini-stat-value">{{ item.value }}</div>
-              <div class="app-dashboard__mini-stat-tip">{{ item.tip }}</div>
-            </div>
-          </div>
-          <div ref="overviewMixChart" class="app-dashboard__chart app-dashboard__chart--medium"></div>
-        </div>
-        <div ref="overviewTrendChart" class="app-dashboard__chart app-dashboard__chart--medium"></div>
-      </div>
-    </el-card>
-
-    <div class="app-dashboard__insight-grid">
-      <el-card class="panel-card">
-        <div class="panel-header">
-          <div class="panel-header__main">
-            <div class="panel-title">热门模块 / 函数</div>
-            <div class="panel-subtitle">汇总 HTTP、RPC、定时任务与异常热点，快速定位业务焦点。</div>
-          </div>
-        </div>
-        <div class="app-dashboard__dual-chart">
-          <div>
-            <div class="section-caption">调用 Top 8</div>
-            <div ref="overviewRankChart" class="app-dashboard__chart app-dashboard__chart--small"></div>
-          </div>
-          <div>
-            <div class="section-caption">风险 Top 8</div>
-            <div ref="overviewRiskChart" class="app-dashboard__chart app-dashboard__chart--small"></div>
-          </div>
-        </div>
-      </el-card>
-
-      <el-card class="panel-card">
-        <div class="panel-header">
-          <div class="panel-header__main">
-            <div class="panel-title">API 资产概览</div>
-            <div class="panel-subtitle">统计接口总量、签名覆盖率与模块分布，辅助接口治理和开放评估。</div>
-          </div>
-        </div>
-        <div class="app-dashboard__overview-metrics app-dashboard__overview-metrics--compact">
-          <div v-for="item in apiOverviewMetrics" :key="item.label" class="app-dashboard__mini-stat">
-            <div class="app-dashboard__mini-stat-label">{{ item.label }}</div>
-            <div class="app-dashboard__mini-stat-value">{{ item.value }}</div>
-            <div class="app-dashboard__mini-stat-tip">{{ item.tip }}</div>
-          </div>
-        </div>
-        <div class="app-dashboard__api-overview">
-          <div ref="apiAssetChart" class="app-dashboard__chart app-dashboard__chart--small"></div>
-          <div class="app-dashboard__mini-list">
-            <div class="section-caption">模块 Top 6</div>
-            <div v-if="apiModuleRank.length === 0" class="muted-text">暂无接口资产数据</div>
-            <div v-for="item in apiModuleRank.slice(0, 6)" :key="item.service" class="app-dashboard__mini-list-item">
-              <div class="app-dashboard__mini-list-main">{{ item.label }}</div>
-              <div class="app-dashboard__mini-list-value">{{ item.value }} 个</div>
-            </div>
-          </div>
-        </div>
-      </el-card>
-    </div>
-
     <el-dialog :visible.sync="dialogTableVisible" title="应用信息" width="720px" custom-class="compact-dialog">
 
       <div class="panel-stack">
@@ -412,19 +342,6 @@ export default {
       hostPassword: '',
       hostEnv: '',
       hostDeploy: '',
-      overviewStats: [],
-      loadInsight: {
-        normal: [],
-        risk: []
-      },
-      apiAsset: {
-        total: 0,
-        open: 0,
-        sign: 0,
-        md5: 0,
-        sha256: 0
-      },
-      apiModules: [],
 
 
     }
@@ -459,33 +376,6 @@ export default {
         { label: 'P99 时延', value: this.formatLatency(this.dashboard.p99), className: 'metric-card--primary', tip: '关注长尾请求耗时' }
       ];
     },
-    totalCallCount() {
-      return this.toNumber(this.dashboard.http) + this.toNumber(this.dashboard.rpc) + this.toNumber(this.dashboard.task);
-    },
-    flowOverviewMetrics() {
-      const total = this.totalCallCount;
-      const err = this.toNumber(this.dashboard.err);
-      const warn = this.toNumber(this.dashboard.warn);
-      return [
-        { label: '今日总调用', value: this.formatCompactNumber(total), tip: 'HTTP + RPC + TASK' },
-        { label: '成功率', value: this.formatPercent(total > 0 ? ((total - err) / total) * 100 : 0), tip: '按异常请求折算' },
-        { label: '错误率', value: this.formatPercent(total > 0 ? (err / total) * 100 : 0), tip: 'ERRCODE > 80' },
-        { label: '告警率', value: this.formatPercent(total > 0 ? (warn / total) * 100 : 0), tip: '日志异常占比' }
-      ];
-    },
-    apiOverviewMetrics() {
-      const total = this.apiAsset.total;
-      const signed = this.apiAsset.sign;
-      return [
-        { label: '接口总数', value: total || 0, tip: '当前应用全部接口' },
-        { label: '开放接口', value: this.apiAsset.open || 0, tip: '无需签名即可访问' },
-        { label: '签名接口', value: signed || 0, tip: 'MD5 / SHA256 保护' },
-        { label: '签名覆盖率', value: this.formatPercent(total > 0 ? (signed / total) * 100 : 0), tip: '接口安全覆盖水平' }
-      ];
-    },
-    apiModuleRank() {
-      return this.apiModules.slice().sort((a, b) => b.value - a.value);
-    },
 
 
   },
@@ -506,9 +396,6 @@ export default {
     this.getStatList();
     // 非首屏关键请求延迟执行，优先渲染上方图表
     setTimeout(() => {
-      this.getOverviewStats();
-      this.getLoadInsight();
-      this.getApiAssetSummary();
       this.getAppHost();
     }, 0);
   },
@@ -524,52 +411,10 @@ export default {
       const num = Number(value);
       return Number.isFinite(num) ? num : 0;
     },
-    formatCompactNumber(value) {
-      const num = this.toNumber(value);
-      if (num >= 10000) {
-        return `${(num / 10000).toFixed(num >= 100000 ? 0 : 1)}w`;
-      }
-      return `${num}`;
-    },
-    formatPercent(value) {
-      const num = this.toNumber(value);
-      return `${num.toFixed(1)}%`;
-    },
-    flattenApiList(list) {
-      const result = [];
-      (list || []).forEach(moduleItem => {
-        (moduleItem.funcList || []).forEach(funcItem => {
-          result.push({
-            ...funcItem,
-            service: moduleItem.service,
-            serviceName: moduleItem.name
-          });
-        });
-      });
-      return result;
-    },
-    setEmptyChart(chart, title) {
-      chart.clear();
-      chart.setOption({
-        title: {
-          text: title || '暂无数据',
-          left: 'center',
-          top: 'middle',
-          textStyle: {
-            color: '#94a3b8',
-            fontSize: 14,
-            fontWeight: 500
-          }
-        },
-        xAxis: { show: false },
-        yAxis: { show: false },
-        series: []
-      });
-    },
     handleResize() {
       clearTimeout(this._resizeTimer);
       this._resizeTimer = setTimeout(() => {
-        ['main0', 'main1', 'main2', 'overviewMixChart', 'overviewTrendChart', 'overviewRankChart', 'overviewRiskChart', 'apiAssetChart'].forEach(refName => {
+        ['main0', 'main1', 'main2'].forEach(refName => {
           const el = this.$refs[refName];
           if (el) {
             const chart = echarts.getInstanceByDom(el);
@@ -824,9 +669,6 @@ export default {
         this.dashboard = res.data && res.data.static && res.data.static.length > 0 ? res.data.static[0] : this.dashboard;
         this.currentDayQpm = res.data.qps || [];
         this.initMain0(this.yesterdayQpm, this.lastweekQpm, res.data.qps || []);
-        this.$nextTick(() => {
-          this.renderFlowMixChart();
-        });
       });
     },
 
@@ -840,212 +682,6 @@ export default {
         this.yesterdayQpm = res1.data;
         this.lastweekQpm = res2.data;
         this.getDashBoard();
-      });
-    },
-    getOverviewStats() {
-      const end = new Date();
-      const start = new Date(end.getTime() - 13 * 24 * 3600 * 1000);
-      request({
-        url: "/admin/home/appStat",
-        params: {
-          module: null,
-          func: null,
-          start: start.format("yyyyMMdd"),
-          end: end.format("yyyyMMdd")
-        }
-      }).then(res => {
-        this.overviewStats = res.data || [];
-        this.$nextTick(() => {
-          this.renderOverviewTrendChart();
-        });
-      });
-    },
-    getLoadInsight() {
-      const config = [
-        { type: 0, label: 'HTTP', bucket: 'normal' },
-        { type: 1, label: 'RPC', bucket: 'normal' },
-        { type: 2, label: 'TASK', bucket: 'normal' },
-        { type: 3, label: '异常', bucket: 'risk' },
-        { type: 4, label: '日志', bucket: 'risk' }
-      ];
-      Promise.all(config.map(item => {
-        return request({
-          url: "/admin/home/getModuleFuncLoad",
-          params: { type: item.type }
-        }).then(res => {
-          return {
-            ...item,
-            list: (res.data || []).map(record => ({
-              ...record,
-              scene: item.label,
-              num: this.toNumber(record.num),
-              fullName: `${record.module || '-'} / ${record.func || '-'}`
-            }))
-          };
-        });
-      })).then(result => {
-        const normal = [];
-        const risk = [];
-        result.forEach(item => {
-          if (item.bucket === 'normal') {
-            normal.push(...item.list);
-          } else {
-            risk.push(...item.list);
-          }
-        });
-        this.loadInsight.normal = normal.sort((a, b) => b.num - a.num).slice(0, 8);
-        this.loadInsight.risk = risk.sort((a, b) => b.num - a.num).slice(0, 8);
-        this.$nextTick(() => {
-          this.renderTopCharts();
-        });
-      });
-    },
-    getApiAssetSummary() {
-      request({
-        url: "/admin/apimkt/getApiList",
-        params: {}
-      }).then(res => {
-        const list = res.data || [];
-        const flatList = this.flattenApiList(list);
-        this.apiAsset = {
-          total: flatList.length,
-          open: flatList.filter(item => item.sign === 0).length,
-          sign: flatList.filter(item => item.sign === 1 || item.sign === 2).length,
-          md5: flatList.filter(item => item.sign === 1).length,
-          sha256: flatList.filter(item => item.sign === 2).length
-        };
-        this.apiModules = list.map(item => ({
-          label: item.name || item.service,
-          service: item.service,
-          value: (item.funcList || []).length
-        })).sort((a, b) => b.value - a.value);
-        this.$nextTick(() => {
-          this.renderApiAssetChart();
-        });
-      });
-    },
-    renderFlowMixChart() {
-      if (!this.$refs.overviewMixChart) {
-        return;
-      }
-      const chart = echarts.getInstanceByDom(this.$refs.overviewMixChart) || echarts.init(this.$refs.overviewMixChart);
-      const source = [
-        { name: 'HTTP', value: this.toNumber(this.dashboard.http) },
-        { name: 'RPC', value: this.toNumber(this.dashboard.rpc) },
-        { name: 'TASK', value: this.toNumber(this.dashboard.task) },
-        { name: 'ERR', value: this.toNumber(this.dashboard.err) },
-        { name: 'WARN', value: this.toNumber(this.dashboard.warn) }
-      ].filter(item => item.value > 0);
-      if (source.length === 0) {
-        this.setEmptyChart(chart, '暂无流量数据');
-        return;
-      }
-      chart.setOption({
-        color: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
-        tooltip: { trigger: 'item' },
-        legend: { bottom: 0 },
-        series: [{
-          name: '调用结构',
-          type: 'pie',
-          radius: ['48%', '72%'],
-          center: ['50%', '45%'],
-          avoidLabelOverlap: true,
-          label: { formatter: '{b}\n{c}' },
-          data: source
-        }]
-      });
-    },
-    renderOverviewTrendChart() {
-      if (!this.$refs.overviewTrendChart) {
-        return;
-      }
-      const chart = echarts.getInstanceByDom(this.$refs.overviewTrendChart) || echarts.init(this.$refs.overviewTrendChart);
-      if (!this.overviewStats.length) {
-        this.setEmptyChart(chart, '暂无趋势数据');
-        return;
-      }
-      chart.setOption({
-        color: ['#2563eb', '#10b981', '#f59e0b', '#ef4444'],
-        tooltip: { trigger: 'axis' },
-        legend: { top: 8 },
-        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-        xAxis: { type: 'category', data: this.overviewStats.map(item => item.dcdate) },
-        yAxis: { type: 'value' },
-        series: ['http', 'rpc', 'task', 'err'].map((key, index) => ({
-          name: ['HTTP', 'RPC', 'TASK', 'ERR'][index],
-          type: key === 'err' ? 'line' : 'bar',
-          stack: key === 'err' ? null : 'calls',
-          smooth: true,
-          barMaxWidth: 26,
-          data: this.overviewStats.map(item => this.toNumber(item[key]))
-        }))
-      });
-    },
-    renderBarChart(refName, list, title, colors) {
-      const el = this.$refs[refName];
-      if (!el) {
-        return;
-      }
-      const chart = echarts.getInstanceByDom(el) || echarts.init(el);
-      if (!list.length) {
-        this.setEmptyChart(chart, '暂无排行数据');
-        return;
-      }
-      chart.setOption({
-        color: Object.values(colors),
-        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-
-        grid: { left: '3%', right: '4%', bottom: '3%', top: '8%', containLabel: true },
-        xAxis: { type: 'value' },
-        yAxis: {
-          type: 'category',
-          inverse: true,
-          axisLabel: {
-            width: 140,
-            overflow: 'truncate'
-          },
-          data: list.map(item => item.fullName)
-        },
-        series: [{
-          name: title,
-          type: 'bar',
-          barWidth: 16,
-          data: list.map(item => ({ value: item.num, itemStyle: { color: colors[item.scene] || '#2563eb' } }))
-        }]
-      });
-    },
-    renderTopCharts() {
-      this.renderBarChart('overviewRankChart', this.loadInsight.normal, '调用量', { HTTP: '#2563eb', RPC: '#10b981', TASK: '#f59e0b' });
-      this.renderBarChart('overviewRiskChart', this.loadInsight.risk, '风险量', { 异常: '#ef4444', 日志: '#8b5cf6' });
-    },
-    renderApiAssetChart() {
-      if (!this.$refs.apiAssetChart) {
-        return;
-      }
-      const chart = echarts.getInstanceByDom(this.$refs.apiAssetChart) || echarts.init(this.$refs.apiAssetChart);
-      if (!this.apiModuleRank.length) {
-        this.setEmptyChart(chart, '暂无接口资产');
-        return;
-      }
-      chart.setOption({
-        color: ['#2563eb'],
-        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        grid: { left: '3%', right: '4%', bottom: '3%', top: '8%', containLabel: true },
-        xAxis: { type: 'value' },
-        yAxis: {
-          type: 'category',
-          inverse: true,
-          axisLabel: {
-            width: 120,
-            overflow: 'truncate'
-          },
-          data: this.apiModuleRank.slice(0, 6).map(item => item.label)
-        },
-        series: [{
-          type: 'bar',
-          barWidth: 16,
-          data: this.apiModuleRank.slice(0, 6).map(item => item.value)
-        }]
       });
     },
     getStatList() {
@@ -1291,127 +927,6 @@ export default {
   font-size: 17px;
 }
 
-.app-dashboard__overview-grid {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.app-dashboard__insight-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.app-dashboard__overview-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.app-dashboard__overview-panel--summary {
-  justify-content: space-between;
-}
-
-.app-dashboard__overview-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.app-dashboard__overview-metrics--compact {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 4px;
-}
-
-.app-dashboard__mini-stat {
-  padding: 12px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #ffffff, #f8fbff);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-}
-
-.app-dashboard__mini-stat-label {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.app-dashboard__mini-stat-value {
-  margin-top: 8px;
-  font-size: 22px;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1.2;
-}
-
-.app-dashboard__mini-stat-tip {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.app-dashboard__dual-chart {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.app-dashboard__api-overview {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 12px;
-  align-items: start;
-  margin-top: 12px;
-}
-
-
-
-.app-dashboard__mini-list {
-  padding: 12px;
-  border-radius: 14px;
-  background: #f8fbff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-}
-
-.app-dashboard__mini-list-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px dashed rgba(148, 163, 184, 0.28);
-}
-
-.app-dashboard__mini-list-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.app-dashboard__mini-list-item--stack {
-  display: block;
-}
-
-.app-dashboard__mini-list-main {
-  min-width: 0;
-  color: #0f172a;
-  font-weight: 600;
-  word-break: break-all;
-}
-
-.app-dashboard__mini-list-meta {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.app-dashboard__mini-list-value {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #334155;
-}
-
 .app-dashboard__chart-grid {
 
   display: grid;
@@ -1429,14 +944,6 @@ export default {
 
 .app-dashboard__chart--large {
   height: 460px;
-}
-
-.app-dashboard__chart--medium {
-  height: 320px;
-}
-
-.app-dashboard__chart--small {
-  height: 260px;
 }
 
 
@@ -1503,9 +1010,6 @@ export default {
 
 @media (max-width: 1200px) {
   .app-dashboard__top-row,
-  .app-dashboard__overview-grid,
-  .app-dashboard__insight-grid,
-  .app-dashboard__dual-chart,
   .app-dashboard__release-grid {
     grid-template-columns: 1fr;
   }
@@ -1513,17 +1017,11 @@ export default {
   .app-dashboard__runtime-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-
-  .app-dashboard__api-overview {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 992px) {
   .app-dashboard__chart-grid,
-  .app-dashboard__permission-grid,
-  .app-dashboard__overview-metrics,
-  .app-dashboard__overview-metrics--compact {
+  .app-dashboard__permission-grid {
     grid-template-columns: 1fr;
   }
 }
