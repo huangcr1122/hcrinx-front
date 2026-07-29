@@ -141,10 +141,10 @@
           <el-input v-model="appInfo_.giturl" class="flex-prepend-input">
             <template slot="prepend">Git 地址</template>
           </el-input>
-          <el-input v-model="appInfo_.gituser" class="flex-prepend-input">
+          <el-input v-model="appInfo_.gituser" class="flex-prepend-input" autocomplete="off">
             <template slot="prepend">Git 用户</template>
           </el-input>
-          <el-input v-model="appInfo_.gitpwd" class="flex-prepend-input" show-password>
+          <el-input v-model="appInfo_.gitpwd" class="flex-prepend-input" show-password autocomplete="new-password">
             <template slot="prepend">Git 密码</template>
           </el-input>
           <el-input v-model="appInfo_.pomfile" class="flex-prepend-input">
