@@ -145,6 +145,7 @@
             <el-radio :label="0">全部</el-radio>
             <el-radio :label="1">请求异常</el-radio>
             <el-radio :label="2">日志异常</el-radio>
+            <el-radio :label="3">慢请求</el-radio>
           </el-radio-group>
         </el-form-item>
 
@@ -303,7 +304,7 @@ export default {
     },
     getAlertTypeValue(row) {
       const alerttype = row && row.alerttype != null ? Number(row.alerttype) : 0;
-      return [1, 2].indexOf(alerttype) !== -1 ? alerttype : 0;
+      return [1, 2, 3].indexOf(alerttype) !== -1 ? alerttype : 0;
     },
     getAlertTypeLabel(row) {
       const alerttype = this.getAlertTypeValue(row);
@@ -312,6 +313,9 @@ export default {
       }
       if (alerttype === 2) {
         return '日志异常';
+      }
+      if (alerttype === 3) {
+        return '慢请求';
       }
       return '全部';
     },
@@ -322,6 +326,9 @@ export default {
       }
       if (alerttype === 2) {
         return 'danger';
+      }
+      if (alerttype === 3) {
+        return '';
       }
       return 'success';
     },

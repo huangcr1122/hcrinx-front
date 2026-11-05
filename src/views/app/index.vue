@@ -63,6 +63,39 @@
     <el-card class="panel-card">
       <div class="panel-header">
         <div class="panel-header__main">
+          <div class="panel-title">慢请求预警</div>
+          <div class="panel-subtitle">8-21 点整点对比今日与近 30 日同接口 P90，仅统计当日请求数≥50 且 P90>100ms 的接口；达到历史最高值在此展示，超过 2 倍推送企微告警。</div>
+        </div>
+        <div class="panel-header__actions">
+          <span class="muted-text">数据截止：{{ slowUpdateTime }}</span>
+          <el-button size="small" icon="el-icon-refresh-right" @click="getSlowRequest">刷新</el-button>
+        </div>
+      </div>
+      <el-table :data="slowRequests" size="mini" stripe empty-text="今日暂无接口的 P90 达到近 30 日最高值">
+        <el-table-column label="接口" prop="func" min-width="280" show-overflow-tooltip></el-table-column>
+        <el-table-column label="今日 P90" width="110" align="right">
+          <template slot-scope="scope">{{ scope.row.p90 }} ms</template>
+        </el-table-column>
+        <el-table-column label="近 30 日最高 P90" width="150" align="right">
+          <template slot-scope="scope">{{ scope.row.basep90 }} ms</template>
+        </el-table-column>
+        <el-table-column label="倍数" width="100" align="right">
+          <template slot-scope="scope">{{ slowRatio(scope.row).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="今日请求数" width="120" align="right" prop="cnt"></el-table-column>
+        <el-table-column label="判定" width="120">
+          <template slot-scope="scope">
+            <el-tag size="mini" effect="dark" :type="slowRatio(scope.row) > 2 ? 'danger' : 'warning'">
+              {{ slowRatio(scope.row) > 2 ? '超 2 倍' : '达历史峰值' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <el-card class="panel-card">
+      <div class="panel-header">
+        <div class="panel-header__main">
           <div class="panel-title">应用负载趋势</div>
           <div class="panel-subtitle">对比今天、昨日与一周前同时间段的请求量变化。</div>
         </div>
@@ -326,6 +359,8 @@ export default {
       inputValue0: '',
       inputValue1: '',
       dashboardUpdateTime: new Date().format("yyyy-MM-dd hh:mm:ss"),
+      slowRequests: [],
+      slowUpdateTime: '',
       yesterdayQpm: [],
       lastweekQpm: [],
       chartGranularity: localStorage.getItem('app_chartGranularity_' + (Cookies.get('app') || '')) || '5',
@@ -394,6 +429,7 @@ export default {
     });
     this.timerId = setInterval(this.getDashBoard, 30000);
     this.getStatList();
+    this.getSlowRequest();
     // 非首屏关键请求延迟执行，优先渲染上方图表
     setTimeout(() => {
       this.getAppHost();
@@ -657,6 +693,21 @@ export default {
       }
       this['inputVisible' + i] = false;
       this['inputValue' + i] = '';
+    },
+    slowRatio(row) {
+      const base = Number(row.basep90);
+      return base > 0 ? Number(row.p90) / base : 0;
+    },
+    getSlowRequest() {
+      request({
+        url: "/admin/home/getSlowRequest",
+        params: {}
+      }).then(res => {
+        if (res.code === 0) {
+          this.slowRequests = res.data || [];
+          this.slowUpdateTime = new Date().format("yyyy-MM-dd hh:mm:ss");
+        }
+      });
     },
     getDashBoard() {
       request({
